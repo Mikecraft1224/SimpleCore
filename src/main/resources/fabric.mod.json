@@ -1,0 +1,37 @@
+{
+	"schemaVersion": 1,
+	"id": "@mod_id@",
+	"version": "@mod_version@",
+	"name": "@mod_name@",
+	"description": "This is a simple config mod, that makes it easy to create and manage config files.",
+	"authors": [
+		"Mikecraft1224"
+	],
+	"license": "MIT",
+	"icon": "assets/@mod_id@/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"client": [
+			{
+				"value": "@maven_group@.@mod_class@",
+				"adapter": "kotlin"
+			}
+		],
+		"simplecore:feature_scan": [
+			{
+				"value": "@maven_group@.bus.SimpleCoreScanEntrypoint",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"@mod_id@.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=@loader_version@",
+		"minecraft": "~@minecraft_version@",
+		"java": ">=@java_version@",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	}
+}

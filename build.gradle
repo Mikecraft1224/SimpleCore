@@ -1,0 +1,106 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+plugins {
+	id "fabric-loom" version "${loom_version}"
+	id "org.jetbrains.kotlin.jvm" version "2.2.20"
+	id "com.github.gmazzo.buildconfig" version "5.5.1"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+
+repositories {
+	maven { url = "https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1" }
+	maven { url = "https://api.modrinth.com/maven" }
+	maven { url = "https://maven.fabricmc.net/" }
+	maven { url = "https://libraries.minecraft.net/" }
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+
+	implementation(include("io.github.classgraph:classgraph:${project.class_graph_version}"))
+
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	modImplementation "net.fabricmc:fabric-language-kotlin:${project.fabric_kotlin_version}"
+
+	modRuntimeOnly "me.djtheredstoner:DevAuth-fabric:1.2.1"
+}
+
+
+// Compile options
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+kotlin {
+	jvmToolchain(21)
+}
+
+tasks.withType(KotlinCompile).configureEach {
+	compilerOptions {
+		jvmTarget.set(JvmTarget.JVM_21)
+	}
+}
+
+java {
+	toolchain {
+		languageVersion.set(JavaLanguageVersion.of(21))
+	}
+
+	// withSourcesJar()
+}
+
+jar {
+	inputs.property "archivesName", project.base.archivesName
+
+	from("LICENSE") {
+		rename { "${it}_${inputs.properties.archivesName}"}
+	}
+}
+
+
+// ---------------------
+// Resource processing
+// ---------------------
+
+def gradleProperties = new Properties()
+file("gradle.properties").withInputStream { gradleProperties.load(it) }
+
+def toConstName = { Object k ->
+	k.toString().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_")
+}
+
+buildConfig {
+	packageName(maven_group)
+
+	gradleProperties.each { k,v ->
+		if (v != null) {
+			def constName = toConstName(k)
+			def valEsc = v.toString().replace("\\", "\\\\").replace("\"", "\\\"")
+			buildConfigField("String", constName, "\"${valEsc}\"")
+		}
+	}
+}
+
+def replaceTokens = [:]
+replaceTokens.putAll(gradleProperties.collectEntries { k,v -> [(k.toString()): v.toString()] })
+
+def filesToReplace = ["fabric.mod.json", "**/*.mixins.json"]
+
+processResources {
+	filesToReplace.each { pattern ->
+		filesMatching(pattern) {
+			filter(ReplaceTokens, tokens: replaceTokens)
+		}
+	}
+}

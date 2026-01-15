@@ -1,0 +1,10 @@
+package com.github.mikecraft1224.config.api
+
+/**
+ * Annotates a field to be represented as an info label in the config GUI.
+ *
+ * This may only be used on fields of type [String].
+ */
+@Retention(AnnotationRetention.RUNTIME)
+@Target(AnnotationTarget.FIELD)
+annotation class EditorInfo()
