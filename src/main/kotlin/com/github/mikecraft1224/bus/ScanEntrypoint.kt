@@ -1,8 +1,7 @@
 package com.github.mikecraft1224.bus
 
 data class FeatureScanRequest(
-    val packages: List<String>,
-    val includeSubpackages: Boolean = true
+    val packages: List<String>
 )
 
 /**

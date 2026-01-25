@@ -1,7 +1,9 @@
 package com.github.mikecraft1224.mixin;
 
 import com.github.mikecraft1224.SimpleCore;
+import com.github.mikecraft1224.bus.EventRegistry;
 import com.github.mikecraft1224.bus.events.InventoryKeyPressEvent;
+import kotlin.jvm.functions.Function0;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.server.MinecraftServer;
@@ -21,9 +23,9 @@ public class HandledScreenMixin {
 	private void keyPressedPre(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
 		if (!SimpleCore.INSTANCE.getEVENTBUS().existHandlers(InventoryKeyPressEvent.class)) return;
 
-		InventoryKeyPressEvent event = new InventoryKeyPressEvent(keyCode, scanCode, modifiers, this.focusedSlot).post();
+		boolean cancelled = EventRegistry.INSTANCE.post(() -> new InventoryKeyPressEvent(keyCode, scanCode, modifiers, focusedSlot));
 
-		if (event.isCancelled()) {
+		if (cancelled) {
 			cir.setReturnValue(true);
 			cir.cancel();
 		}

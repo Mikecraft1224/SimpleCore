@@ -38,11 +38,9 @@ object FeatureAutoLoader {
         }
 
         scanAndRegister(bus, packagesToScan)
-
-        FabricEventHookLoader.hookUsedEvents(bus)
     }
 
-    private fun scanAndRegister(bus: EventBus, acceptPackages: List<String>) {
+    fun scanAndRegister(bus: EventBus, acceptPackages: List<String>) {
         ClassGraph()
             .enableClassInfo()
             .enableAnnotationInfo()
@@ -66,6 +64,8 @@ object FeatureAutoLoader {
                     }
                 }
             }
+
+        FabricEventHookLoader.hookUsedEvents(bus)
     }
 
     private fun tryInstantiate(cls: Class<*>): Any? {

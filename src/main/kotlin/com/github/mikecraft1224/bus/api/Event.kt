@@ -9,9 +9,4 @@ abstract class Event<T: Event<T>> {
     fun cancel() {
         isCancelled = true
     }
-
-    fun copy(): T {
-        @Suppress("UNCHECKED_CAST")
-        return this.javaClass.getDeclaredConstructor().newInstance() as T
-    }
 }

@@ -4,7 +4,8 @@ import com.github.mikecraft1224.Logger
 import com.github.mikecraft1224.bus.api.Event
 import com.github.mikecraft1224.bus.api.EventPriority
 import com.github.mikecraft1224.bus.api.Subscribe
-import java.lang.reflect.Method
+import java.lang.invoke.MethodHandle
+import java.lang.invoke.MethodHandles
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -20,17 +21,16 @@ import java.util.concurrent.CopyOnWriteArrayList
 class EventBus {
     private data class Handler(
         val owner: Any,
-        val method: Method,
-        val paramType: Class<out Event<*>>,
+        val handle: MethodHandle,
         val priority: EventPriority,
         val receiveCancelled: Boolean
     )
 
-    private val handlers: ConcurrentHashMap<Class<out Event<*>>, Array<CopyOnWriteArrayList<Handler>>> = ConcurrentHashMap()
-    private val priorities: Array<EventPriority> = EventPriority.entries.toTypedArray()
+    private val handlers: ConcurrentHashMap<Class<out Event<*>>, CopyOnWriteArrayList<Handler>> = ConcurrentHashMap()
+    private val lookup = MethodHandles.lookup()
 
-    private fun bucketsFor(eventClass: Class<out Event<*>>): Array<CopyOnWriteArrayList<Handler>> =
-        handlers.computeIfAbsent(eventClass) { Array(priorities.size) { CopyOnWriteArrayList<Handler>() } }
+    private fun handlersFor(eventClass: Class<out Event<*>>): CopyOnWriteArrayList<Handler> =
+        handlers.computeIfAbsent(eventClass) { CopyOnWriteArrayList() }
 
     fun registerFeature(instance: Any) {
         val clazz = instance.javaClass
@@ -39,52 +39,55 @@ class EventBus {
             val ann = m.getAnnotation(Subscribe::class.java) ?: continue
             if (m.parameterCount != 1 || !Event::class.java.isAssignableFrom(m.parameterTypes[0])) {
                 Logger.warn("Method ${m.name} in class ${clazz.name} is annotated with @Subscribe but does not have a single parameter of type Event.")
+                continue
             }
 
             @Suppress("UNCHECKED_CAST")
             val param = m.parameterTypes[0] as Class<out Event<*>>
             m.isAccessible = true
 
-            val handler = Handler(instance, m, param, ann.priority, ann.receiveCancelled)
-            bucketsFor(param)[handler.priority.ordinal].add(handler)
+            val handle = lookup.unreflect(m).bindTo(instance)
+            val handler = Handler(instance, handle, ann.priority, ann.receiveCancelled)
+            val list = handlersFor(param)
+            list.add(handler)
+            list.sortByDescending { it.priority.ordinal }
         }
     }
 
     fun unregisterFeature(instance: Any) {
-        for ((_, buckets) in handlers) {
-            for (bucket in buckets) {
-                bucket.removeIf { it.owner == instance }
-            }
+        for ((_, list) in handlers) {
+            list.removeIf { it.owner == instance }
         }
 
-        handlers.entries.removeIf { (_, buckets) -> buckets.all { it.isEmpty() } }
+        handlers.entries.removeIf { (_, list) -> list.isEmpty() }
     }
 
     fun post(event: Event<*>) {
         val eventClass = event.javaClass
-        val buckets = handlers[eventClass] ?: return
+        val list = handlers[eventClass] ?: return
 
-        for (p in buckets.indices.reversed()) {
-            val bucket = buckets[p]
-            if (bucket.isEmpty()) continue
+        var currentPriority: EventPriority? = null
+        var cancelledAtStart = event.isCancelled
 
-            val cancelledAtStart = event.isCancelled
+        for (handler in list) {
+            if (handler.priority != currentPriority) {
+                currentPriority = handler.priority
+                cancelledAtStart = event.isCancelled
+            }
 
-            for (handler in bucket) {
-                if (cancelledAtStart && !handler.receiveCancelled) continue
+            if (cancelledAtStart && !handler.receiveCancelled) continue
 
-                try {
-                    handler.method.invoke(handler.owner, event)
-                } catch (e: Exception) {
-                    Logger.error("Error invoking event handler ${handler.method.name} in class ${handler.owner.javaClass.name}: ${e.message}")
-                    e.printStackTrace()
-                }
+            try {
+                handler.handle.invoke(event)
+            } catch (e: Throwable) {
+                Logger.error("Error invoking event handler in class ${handler.owner.javaClass.name}: ${e.message}")
+                e.printStackTrace()
             }
         }
     }
 
     fun existHandlers(eventClass: Class<out Event<*>>): Boolean {
-        return handlers[eventClass]?.any { bucket -> bucket.isNotEmpty() } == true
+        return handlers[eventClass]?.isNotEmpty() == true
     }
 
     fun getRegisteredEventClasses(): Set<Class<out Event<*>>> {
