@@ -5,4 +5,4 @@ package com.github.mikecraft1224.bus.api
  */
 @Retention(AnnotationRetention.RUNTIME)
 @Target(AnnotationTarget.CLASS)
-annotation class Feature()
+annotation class Feature

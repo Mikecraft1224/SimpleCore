@@ -2,11 +2,13 @@ package com.github.mikecraft1224.bus.events
 
 import com.github.mikecraft1224.bus.EventRegistry
 import com.github.mikecraft1224.bus.api.Event
+import com.github.mikecraft1224.bus.api.EventCompanion
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.util.math.MatrixStack
 
+@Suppress("UNUSED")
 class RenderWorldEvent(
     val matrices: MatrixStack,
     val camera: Camera,
@@ -14,10 +16,10 @@ class RenderWorldEvent(
     val tickDelta: Float,
     val isCurrentlyDeferring: Boolean = true
 ) : Event<RenderWorldEvent>() {
-    companion object {
+    companion object : EventCompanion<RenderWorldEvent> {
         var registered = false
 
-        fun registerEvents() {
+        override fun registerEvents() {
             if (registered) return
 
             WorldRenderEvents.AFTER_ENTITIES.register { ctx ->

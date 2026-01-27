@@ -1,9 +1,11 @@
 package com.github.mikecraft1224.bus
 
 import com.github.mikecraft1224.Logger
+import com.github.mikecraft1224.bus.api.EventCompanion
 import com.github.mikecraft1224.bus.api.Feature
 import io.github.classgraph.ClassGraph
 import net.fabricmc.loader.api.FabricLoader
+import kotlin.reflect.full.companionObjectInstance
 
 
 /**
@@ -65,7 +67,11 @@ object FeatureAutoLoader {
                 }
             }
 
-        FabricEventHookLoader.hookUsedEvents(bus)
+        // Register Events for registered EventClasses
+        bus.getRegisteredEventClasses().forEach {
+            EventRegistry.addBus(it, bus)
+            (it.companionObjectInstance as? EventCompanion<*>)?.registerEvents()
+        }
     }
 
     private fun tryInstantiate(cls: Class<*>): Any? {

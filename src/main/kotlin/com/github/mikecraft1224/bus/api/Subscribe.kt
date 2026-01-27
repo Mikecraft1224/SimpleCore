@@ -6,7 +6,7 @@ package com.github.mikecraft1224.bus.api
  * This may only be used on methods with a single parameter that is a subclass of [Event].
  *
  * @param priority The priority of the event listener. Listeners with higher priority will be called first.
- * @param receiveCancelled Whether this listener should receive events that have been cancelled.
+ * @param receiveCancelled Whether this listener should receive events that have been canceled.
  */
 @Retention(AnnotationRetention.RUNTIME)
 @Target(AnnotationTarget.FUNCTION)

@@ -11,6 +11,7 @@ package com.github.mikecraft1224.bus.api
  * - HIGH
  * - HIGHEST
  */
+@Suppress("UNUSED")
 enum class EventPriority {
     LOWEST,
     LOW,

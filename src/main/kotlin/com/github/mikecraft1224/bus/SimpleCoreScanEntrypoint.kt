@@ -1,5 +1,6 @@
 package com.github.mikecraft1224.bus
 
+@Suppress("UNUSED")
 class SimpleCoreScanEntrypoint : ScanEntrypoint {
     override fun scanRequest(): FeatureScanRequest {
         return FeatureScanRequest(

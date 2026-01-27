@@ -8,6 +8,7 @@ import java.lang.invoke.MethodHandle
 import java.lang.invoke.MethodHandles
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.reflect.KClass
 
 /**
  * A simple event bus implementation that allows registering and unregistering event handlers,
@@ -18,6 +19,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * This can be checked using the `existHandlers` method or `getRegisteredEventClasses` method.
  * You can look up how this can be done inside the `FeatureAutoLoader` and `ClientTickEvent` classes.
  */
+@Suppress("UNUSED")
 class EventBus {
     private data class Handler(
         val owner: Any,
@@ -26,10 +28,10 @@ class EventBus {
         val receiveCancelled: Boolean
     )
 
-    private val handlers: ConcurrentHashMap<Class<out Event<*>>, CopyOnWriteArrayList<Handler>> = ConcurrentHashMap()
+    private val handlers: ConcurrentHashMap<KClass<out Event<*>>, CopyOnWriteArrayList<Handler>> = ConcurrentHashMap()
     private val lookup = MethodHandles.lookup()
 
-    private fun handlersFor(eventClass: Class<out Event<*>>): CopyOnWriteArrayList<Handler> =
+    private fun handlersFor(eventClass: KClass<out Event<*>>): CopyOnWriteArrayList<Handler> =
         handlers.computeIfAbsent(eventClass) { CopyOnWriteArrayList() }
 
     fun registerFeature(instance: Any) {
@@ -43,7 +45,7 @@ class EventBus {
             }
 
             @Suppress("UNCHECKED_CAST")
-            val param = m.parameterTypes[0] as Class<out Event<*>>
+            val param = (m.parameterTypes[0] as Class<out Event<*>>).kotlin
             m.isAccessible = true
 
             val handle = lookup.unreflect(m).bindTo(instance)
@@ -63,7 +65,7 @@ class EventBus {
     }
 
     fun post(event: Event<*>) {
-        val eventClass = event.javaClass
+        val eventClass = event::class
         val list = handlers[eventClass] ?: return
 
         var currentPriority: EventPriority? = null
@@ -86,11 +88,15 @@ class EventBus {
         }
     }
 
-    fun existHandlers(eventClass: Class<out Event<*>>): Boolean {
+    fun existHandlers(eventClass: KClass<out Event<*>>): Boolean {
         return handlers[eventClass]?.isNotEmpty() == true
     }
 
-    fun getRegisteredEventClasses(): Set<Class<out Event<*>>> {
+    fun existHandlers(javaEventClass: Class<out Event<*>>): Boolean {
+        return existHandlers(javaEventClass.kotlin)
+    }
+
+    fun getRegisteredEventClasses(): Set<KClass<out Event<*>>> {
         return handlers.keys
     }
 }
