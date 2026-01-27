@@ -12,7 +12,8 @@ version = project.mod_version
 group = project.maven_group
 
 base {
-	archivesName = project.archives_base_name
+	// Version is automatically appended by Gradle, so just include base name + MC version
+	archivesName = "${project.archives_base_name}-mc${project.minecraft_version}"
 }
 
 

@@ -13,7 +13,7 @@ class WorldTickEvent(val world: ClientWorld, val tickCount: Int, val phase: Phas
         END
     }
 
-    companion object : EventCompanion<WorldTickEvent> {
+    companion object : EventCompanion {
         var registered = false
         private var totalStartTicks = 0
         private var totalEndTicks = 0

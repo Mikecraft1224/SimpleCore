@@ -13,7 +13,7 @@ class ClientTickEvent(val client: MinecraftClient, val tickCount: Int, val phase
     }
 
     // Registration
-    companion object : EventCompanion<ClientTickEvent> {
+    companion object : EventCompanion {
         private var registered = false
         private var totalStartTicks = 0
         private var totalEndTicks = 0

@@ -10,16 +10,18 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gui.screen.ChatScreen
 import net.minecraft.client.gui.screen.ingame.HandledScreen
+import net.minecraft.client.input.KeyInput
 import net.minecraft.client.option.KeyBinding
 import net.minecraft.client.util.InputUtil
 import org.lwjgl.glfw.GLFW
 import java.util.*
 
+@Suppress("UNUSED")
 @Feature
 object KeybindRegistry {
     fun isKeyDown(keyCode: Int): Boolean {
         val window = MinecraftClient.getInstance().window
-        return InputUtil.isKeyPressed(window.handle, keyCode)
+        return InputUtil.isKeyPressed(window, keyCode)
     }
 
     private val keyActions = mutableMapOf<String, KeyAction>()
@@ -29,7 +31,7 @@ object KeybindRegistry {
 
     fun registerVanilla(
         id: String,
-        categoryKey: String,
+        category: KeyBinding.Category = KeyBinding.Category.MISC,
 
         defaultKey: Int = GLFW.GLFW_KEY_UNKNOWN,
         context: EnumSet<KeyContext> = EnumSet.of(KeyContext.ANY),
@@ -46,7 +48,7 @@ object KeybindRegistry {
                 id,
                 InputUtil.Type.KEYSYM,
                 defaultKey,
-                categoryKey
+                category
             )
         )
         val act = KeyAction(
@@ -129,7 +131,7 @@ object KeybindRegistry {
             return
         }
 
-        val win = event.client.window.handle
+        val win = event.client.window
         val screen = event.client.currentScreen
         val inChat = screen is ChatScreen
         val inHandledScreen = screen is HandledScreen<*>
@@ -193,7 +195,7 @@ object KeybindRegistry {
 
             val matches = when (val src = action.source) {
                 is KeySource.Virtual -> src.keyCode == event.keyCode
-                is KeySource.Vanilla -> src.keyBinding.matchesKey(event.keyCode, event.scanCode)
+                is KeySource.Vanilla -> src.keyBinding.matchesKey(KeyInput(event.keyCode, event.scanCode, event.modifiers))
             }
             if (!matches) return@forEach
 

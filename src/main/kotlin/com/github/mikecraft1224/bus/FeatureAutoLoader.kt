@@ -70,7 +70,7 @@ object FeatureAutoLoader {
         // Register Events for registered EventClasses
         bus.getRegisteredEventClasses().forEach {
             EventRegistry.addBus(it, bus)
-            (it.companionObjectInstance as? EventCompanion<*>)?.registerEvents()
+            (it.companionObjectInstance as? EventCompanion)?.registerEvents()
         }
     }
 

@@ -1,6 +1,7 @@
 package com.github.mikecraft1224.input.api
 
 import net.minecraft.client.util.InputUtil
+import net.minecraft.client.util.Window
 import org.lwjgl.glfw.GLFW
 
 /**
@@ -15,8 +16,8 @@ data class Modifiers(
     val shift: Boolean = false,
     val alt: Boolean = false,
 ) {
-    fun matches(win: Long): Boolean {
-        if (win == 0L) return false
+    fun matches(win: Window?): Boolean {
+        if (win == null) return false
         fun down(code: Int) = InputUtil.isKeyPressed(win, code)
         if (ctrl  && !(down(GLFW.GLFW_KEY_LEFT_CONTROL) || down(GLFW.GLFW_KEY_RIGHT_CONTROL))) return false
         if (shift && !(down(GLFW.GLFW_KEY_LEFT_SHIFT)   || down(GLFW.GLFW_KEY_RIGHT_SHIFT)))   return false

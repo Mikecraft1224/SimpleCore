@@ -3,16 +3,14 @@ package com.github.mikecraft1224
 import com.github.mikecraft1224.bus.EventBus
 import com.github.mikecraft1224.bus.FeatureAutoLoader
 import com.github.mikecraft1224.bus.api.Feature
-import com.github.mikecraft1224.bus.events.ClientTickEvent
-import com.github.mikecraft1224.bus.events.RenderWorldEvent
-import com.github.mikecraft1224.bus.events.WorldTickEvent
 import com.github.mikecraft1224.input.KeybindRegistry
 import com.github.mikecraft1224.input.api.ConfigKeybind
 import com.github.mikecraft1224.input.api.KeyContext
 import com.github.mikecraft1224.input.api.Modifiers
 import net.fabricmc.api.ClientModInitializer
+import net.minecraft.client.option.KeyBinding
 import org.lwjgl.glfw.GLFW
-import java.util.EnumSet
+import java.util.*
 
 @Feature
 object SimpleCore : ClientModInitializer {
@@ -26,7 +24,7 @@ object SimpleCore : ClientModInitializer {
 
 		KeybindRegistry.registerVanilla(
 			"Test Keybind",
-			"Test Category",
+			KeyBinding.Category.MISC,  // Use built-in category, or create custom with KeyBinding.Category.create(Identifier.of("modid", "name"))
 			GLFW.GLFW_KEY_UNKNOWN,
 			EnumSet.of(KeyContext.ANY),
 			Modifiers(ctrl = true, shift = false, alt = false),

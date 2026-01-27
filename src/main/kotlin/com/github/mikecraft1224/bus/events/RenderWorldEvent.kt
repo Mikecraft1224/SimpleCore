@@ -3,7 +3,8 @@ package com.github.mikecraft1224.bus.events
 import com.github.mikecraft1224.bus.EventRegistry
 import com.github.mikecraft1224.bus.api.Event
 import com.github.mikecraft1224.bus.api.EventCompanion
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents
+import net.minecraft.client.MinecraftClient
 import net.minecraft.client.render.Camera
 import net.minecraft.client.render.VertexConsumerProvider
 import net.minecraft.client.util.math.MatrixStack
@@ -16,7 +17,7 @@ class RenderWorldEvent(
     val tickDelta: Float,
     val isCurrentlyDeferring: Boolean = true
 ) : Event<RenderWorldEvent>() {
-    companion object : EventCompanion<RenderWorldEvent> {
+    companion object : EventCompanion {
         var registered = false
 
         override fun registerEvents() {
@@ -25,14 +26,16 @@ class RenderWorldEvent(
             WorldRenderEvents.AFTER_ENTITIES.register { ctx ->
                 val vertexConsumers = ctx.consumers() as? VertexConsumerProvider.Immediate ?: return@register
 
-                val stack = ctx.matrixStack() ?: MatrixStack()
+                val stack = ctx.matrices() ?: MatrixStack()
+                val client = MinecraftClient.getInstance()
+                val camera = client.gameRenderer.camera
 
                 EventRegistry.post {
                     RenderWorldEvent(
                         stack,
-                        ctx.camera(),
+                        camera,
                         vertexConsumers,
-                        ctx.tickCounter().getTickDelta(true),
+                        client.renderTickCounter.getTickProgress(true),
                         false
                     )
                 }
