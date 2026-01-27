@@ -41,16 +41,11 @@ TODO
 ```
 
 
-## Eventbus
+## Ui Library
 ### Short description
-Lightweight eventbus system for decoupled communication between components.
+Easy to expand moveables and some predefined UIs
 
-### Features
-- Subscribe to events with specific types
-- Easy to create own events and post to the same global bus that is shared between all subscribed mods
-- Opt-in to event bus system in each mod
-- Barebones implementation to allow easy creation of own eventbus systems if needed
-
-### Example usage
-
-```kotlin
+### Components
+- Some sort of base overlay class that provides position and is moveable
+- Default UIs that have text content with optional images in front of each row, categories and clickable rows
+- Color customization
