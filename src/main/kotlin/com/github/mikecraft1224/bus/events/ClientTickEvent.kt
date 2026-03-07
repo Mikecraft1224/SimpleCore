@@ -6,7 +6,8 @@ import com.github.mikecraft1224.bus.api.EventCompanion
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.MinecraftClient
 
-class ClientTickEvent(val client: MinecraftClient, val tickCount: Int, val phase: Phase) : Event<ClientTickEvent>() {
+@Suppress("UNUSED")
+class ClientTickEvent(val client: MinecraftClient, val tickCount: Int, val phase: Phase) : Event() {
     enum class Phase {
         START,
         END

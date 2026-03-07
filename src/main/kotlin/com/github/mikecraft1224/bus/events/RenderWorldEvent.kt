@@ -16,9 +16,9 @@ class RenderWorldEvent(
     val vertexConsumerProvider: VertexConsumerProvider.Immediate,
     val tickDelta: Float,
     val isCurrentlyDeferring: Boolean = true
-) : Event<RenderWorldEvent>() {
+) : Event() {
     companion object : EventCompanion {
-        var registered = false
+        private var registered = false
 
         override fun registerEvents() {
             if (registered) return

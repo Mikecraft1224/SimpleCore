@@ -1,4 +1,3 @@
-import org.apache.tools.ant.filters.ReplaceTokens
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -93,15 +92,10 @@ buildConfig {
 	}
 }
 
-def replaceTokens = [:]
-replaceTokens.putAll(gradleProperties.collectEntries { k,v -> [(k.toString()): v.toString()] })
-
-def filesToReplace = ["fabric.mod.json", "**/*.mixins.json"]
+def expandProperties = gradleProperties.collectEntries { k,v -> [(k.toString()): v.toString()] }
 
 processResources {
-	filesToReplace.each { pattern ->
-		filesMatching(pattern) {
-			filter(ReplaceTokens, tokens: replaceTokens)
-		}
+	filesMatching(["fabric.mod.json", "**/*.mixins.json"]) {
+		expand(expandProperties)
 	}
 }

@@ -1,25 +1,41 @@
 package com.github.mikecraft1224.bus
 
 import com.github.mikecraft1224.Logger
+import com.github.mikecraft1224.bus.api.ConditionalFeature
 import com.github.mikecraft1224.bus.api.EventCompanion
 import com.github.mikecraft1224.bus.api.Feature
+import com.github.mikecraft1224.bus.api.FeatureCondition
 import io.github.classgraph.ClassGraph
+import io.github.classgraph.ClassInfoList
 import net.fabricmc.loader.api.FabricLoader
+import kotlin.reflect.KClass
 import kotlin.reflect.full.companionObjectInstance
 
-
 /**
- * Utility to automatically load and register all classes annotated with [Feature] from specified packages.
- * This uses the ClassGraph library to perform classpath scanning based on entrypoints defined in the Fabric mod loader.
- * You can specify your own entrypoints for your own event bus systems if needed.
+ * Utility to automatically load and register all classes annotated with [Feature] (or a
+ * custom annotation) from packages declared by [ScanEntrypoint] Fabric entrypoints.
+ *
+ * Key behaviours:
+ * - Classes annotated with [@ConditionalFeature][ConditionalFeature] are only registered when
+ *   their [FeatureCondition] returns `true`.
+ * - [FeatureScanRequest.rejectedPackages] lets mods exclude internal sub-packages from the scan.
+ * - [FeatureScanRequest.annotationClasses] lets mods use their own marker annotation instead of
+ *   the shared [Feature] annotation.
  */
 object FeatureAutoLoader {
+
+    /**
+     * Resolves all [ScanEntrypoint] implementations registered under [entrypointKey] in
+     * `fabric.mod.json` and delegates to [scanAndRegister].
+     *
+     * @param bus The bus to register discovered features onto.
+     * @param entrypointKey The Fabric entrypoint key to query. Defaults to `simplecore:feature_scan`.
+     */
     fun loadOptInPackages(bus: EventBus, entrypointKey: String = "simplecore:feature_scan") {
         val entrypoints = runCatching {
             FabricLoader.getInstance().getEntrypoints(entrypointKey, ScanEntrypoint::class.java)
         }.getOrElse { e ->
-            Logger.error("Error loading SimpleCore scan entrypoints: ${e.message}")
-            e.printStackTrace()
+            Logger.error("Error loading SimpleCore scan entrypoints: ${e.message}", e)
             return
         }
 
@@ -28,50 +44,125 @@ object FeatureAutoLoader {
             return
         }
 
-        val packagesToScan = mutableListOf<String>()
+        val requests = mutableListOf<FeatureScanRequest>()
         for (ep in entrypoints) {
-            try {
-                val req = ep.scanRequest()
-                packagesToScan.addAll(req.packages)
-            } catch (e: Exception) {
-                Logger.error("Error obtaining scan request from entrypoint ${ep.javaClass.name}: ${e.message}")
-                e.printStackTrace()
+            runCatching { requests.add(ep.scanRequest()) }.onFailure { e ->
+                Logger.error("Error obtaining scan request from ${ep.javaClass.name}: ${e.message}", e)
             }
         }
 
-        scanAndRegister(bus, packagesToScan)
+        if (requests.isEmpty()) return
+
+        // Merge all requests into a single scan to avoid redundant ClassGraph passes
+        val packages = requests.flatMap { it.packages }.distinct()
+        val rejected = requests.flatMap { it.rejectedPackages }.distinct()
+        val annotations = requests.flatMap { it.annotationClasses }.distinct()
+
+        scanAndRegister(bus, packages, rejected, annotations)
     }
 
-    fun scanAndRegister(bus: EventBus, acceptPackages: List<String>) {
-        ClassGraph()
+    /**
+     * Performs a ClassGraph scan over [acceptPackages] (minus [rejectPackages]), discovers
+     * classes carrying any annotation in [annotationClasses], evaluates any
+     * [@ConditionalFeature][ConditionalFeature] guard, instantiates eligible classes, and
+     * registers them on [bus].
+     *
+     * After registration, lazily activates Fabric-side event hooks for every event type that
+     * now has at least one handler (via [EventCompanion.registerEvents]).
+     *
+     * @param bus The bus to register discovered features onto.
+     * @param acceptPackages Packages to scan.
+     * @param rejectPackages Packages to exclude from the scan. Defaults to empty.
+     * @param annotationClasses Annotation types that mark a class as a feature.
+     *   Defaults to [[Feature]].
+     */
+    fun scanAndRegister(
+        bus: EventBus,
+        acceptPackages: List<String>,
+        rejectPackages: List<String> = emptyList(),
+        annotationClasses: List<KClass<out Annotation>> = listOf(Feature::class)
+    ) {
+        val graph = ClassGraph()
             .enableClassInfo()
             .enableAnnotationInfo()
             .ignoreClassVisibility()
             .acceptPackages(*acceptPackages.toTypedArray())
-            .scan().use { scanResult ->
-                val featureClasses = scanResult.getClassesWithAnnotation(Feature::class.java.name)
 
-                for (ci in featureClasses) {
-                    try {
-                        val cls = ci.loadClass()
-                        val instance = tryInstantiate(cls) ?: run {
-                            Logger.warn("Could not instantiate feature class ${cls.name}. Ensure it has a no-arg constructor or is an object/singleton.")
-                            continue
-                        }
+        if (rejectPackages.isNotEmpty()) {
+            graph.rejectPackages(*rejectPackages.toTypedArray())
+        }
 
-                        bus.registerFeature(instance)
-                    } catch (e: Exception) {
-                        Logger.error("Error loading feature class ${ci.name}: ${e.message}")
-                        e.printStackTrace()
+        graph.scan().use { scanResult ->
+            // Union results across all requested annotation types
+            val featureClasses: ClassInfoList = annotationClasses
+                .map { scanResult.getClassesWithAnnotation(it.java.name) }
+                .fold(ClassInfoList.emptyList()) { acc, list -> acc.union(list) }
+
+            for (ci in featureClasses) {
+                try {
+                    val cls = ci.loadClass()
+
+                    if (!checkCondition(cls)) {
+                        Logger.debug("[FeatureAutoLoader] Skipping ${cls.name} — condition returned false.")
+                        continue
                     }
+
+                    val instance = tryInstantiate(cls) ?: run {
+                        Logger.warn(
+                            "Could not instantiate feature class ${cls.name}. " +
+                            "Ensure it has a no-arg constructor or is a Kotlin object/singleton."
+                        )
+                        continue
+                    }
+
+                    bus.registerFeature(instance)
+                } catch (e: Exception) {
+                    Logger.error("Error loading feature class ${ci.name}: ${e.message}", e)
                 }
             }
-
-        // Register Events for registered EventClasses
-        bus.getRegisteredEventClasses().forEach {
-            EventRegistry.addBus(it, bus)
-            (it.companionObjectInstance as? EventCompanion)?.registerEvents()
         }
+
+        // Lazily register Fabric-side event hooks for every event class that now has handlers
+        bus.getRegisteredEventClasses().forEach { eventClass ->
+            EventRegistry.addBus(eventClass, bus)
+            (eventClass.companionObjectInstance as? EventCompanion)?.registerEvents()
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------------------------
+
+    /**
+     * Evaluates the [@ConditionalFeature][ConditionalFeature] guard on [cls], if present.
+     * Returns `true` if there is no guard or if the condition's [FeatureCondition.shouldLoad]
+     * returns `true`.
+     */
+    private fun checkCondition(cls: Class<*>): Boolean {
+        val annotation = cls.getAnnotation(ConditionalFeature::class.java) ?: return true
+        val conditionClass = annotation.condition
+
+        val condition: FeatureCondition? = run {
+            // Try Kotlin object (INSTANCE field)
+            runCatching {
+                val field = conditionClass.java.getDeclaredField("INSTANCE")
+                field.isAccessible = true
+                field.get(null) as? FeatureCondition
+            }.getOrNull()
+            ?: runCatching {
+                val ctor = conditionClass.java.getDeclaredConstructor()
+                ctor.isAccessible = true
+                ctor.newInstance() as FeatureCondition
+            }.getOrElse { e ->
+                Logger.warn(
+                    "Could not instantiate FeatureCondition ${conditionClass.qualifiedName} for " +
+                    "${cls.name}. Feature will be skipped. Cause: ${e.message}"
+                )
+                null
+            }
+        }
+
+        return condition?.shouldLoad() ?: false
     }
 
     private fun tryInstantiate(cls: Class<*>): Any? {

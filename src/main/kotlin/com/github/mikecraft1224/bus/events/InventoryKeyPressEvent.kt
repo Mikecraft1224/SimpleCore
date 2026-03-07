@@ -1,6 +1,6 @@
 package com.github.mikecraft1224.bus.events
 
-import com.github.mikecraft1224.bus.api.Event
+import com.github.mikecraft1224.bus.api.CancellableEvent
 import net.minecraft.screen.slot.Slot
 
 class InventoryKeyPressEvent(
@@ -8,4 +8,4 @@ class InventoryKeyPressEvent(
     val scanCode: Int,
     val modifiers: Int,
     val hoveredSlot: Slot?
-) : Event<InventoryKeyPressEvent>()
+) : CancellableEvent()

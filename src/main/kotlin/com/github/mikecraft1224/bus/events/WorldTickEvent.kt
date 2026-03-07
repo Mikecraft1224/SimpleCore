@@ -7,14 +7,14 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.world.ClientWorld
 
 @Suppress("UNUSED")
-class WorldTickEvent(val world: ClientWorld, val tickCount: Int, val phase: Phase) : Event<WorldTickEvent>() {
+class WorldTickEvent(val world: ClientWorld, val tickCount: Int, val phase: Phase) : Event() {
     enum class Phase {
         START,
         END
     }
 
     companion object : EventCompanion {
-        var registered = false
+        private var registered = false
         private var totalStartTicks = 0
         private var totalEndTicks = 0
 
