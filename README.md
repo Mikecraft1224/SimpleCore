@@ -13,6 +13,12 @@ Lightweight Fabric client-side mod library.
     - [Handler options](#handler-options)
   - [Creating Your Own Bus](#creating-your-own-bus)
 - [Keybind System](#keybind-system)
+  - [Registering keybinds](#registering-keybinds)
+  - [Key descriptors](#key-descriptors)
+  - [Contexts and modifiers](#contexts-and-modifiers)
+  - [Callbacks](#callbacks)
+  - [KeybindHandle — lifecycle control](#keybindhandle--lifecycle-control)
+  - [Blocking](#blocking)
 - [Config System](#config-system)
 - [Build](#build)
 - [Contributing](#contributing)
@@ -177,7 +183,7 @@ Custom condition:
 
 ```kotlin
 object MyCondition : FeatureCondition {
-    override fun shouldLoad() = /* any check available at mod init time */
+    override fun shouldLoad(): Boolean = true // any check available at mod init time
 }
 ```
 
@@ -264,11 +270,143 @@ EventBusMonitor.setCapacity(512)  // default 256
 
 ## Keybind System
 
-- Vanilla keybinds with Fabric integration via `KeybindRegistry`
-- Virtual keybinds independent of the vanilla system via `VirtualKeybind`
-- Context-aware activation (in-game only checks)
-- Modifier key support: Ctrl, Shift, Alt
-- Configurable press modes: `PRESS`, `RELEASE`, `HOLD`, `TOGGLE`
+`KeybindRegistry` manages both vanilla (Minecraft options screen) and virtual (runtime-only) keybinds. Both registration methods return a `KeybindHandle` for lifecycle control.
+
+---
+
+### Registering keybinds
+
+**Vanilla keybind** — appears in Minecraft's controls screen, player-remappable:
+
+```kotlin
+val handle: KeybindHandle = KeybindRegistry.registerVanilla(
+    id = "key.mymod.sprint",          // must follow key.<modid>.<action> convention
+    category = KeyBinding.Category.MOVEMENT,
+    defaultKey = KeyDescriptor.keyboard(GLFW.GLFW_KEY_LEFT_ALT),
+    context = KeyContext.IN_GAME,
+    onPress = { client -> /* ... */ },
+    onRelease = { client -> /* ... */ },
+)
+```
+
+**Virtual keybind** — not shown in options screen, fully runtime-managed:
+
+```kotlin
+val handle: KeybindHandle = KeybindRegistry.registerVirtual(
+    id = "mymod.zoom",
+    key = KeyDescriptor.keyboard(GLFW.GLFW_KEY_C, Modifiers(ctrl = true)),
+    context = KeyContext.IN_GAME,
+    onPress = { client -> /* ... */ },
+)
+```
+
+Rebind a virtual keybind at runtime (e.g., after loading config):
+
+```kotlin
+KeybindRegistry.updateVirtualKeybind("mymod.zoom", KeyDescriptor.keyboard(GLFW.GLFW_KEY_Z))
+```
+
+---
+
+### Key descriptors
+
+`KeyDescriptor` wraps an `InputUtil.Key` (Minecraft's own key type) and optional modifiers:
+
+```kotlin
+KeyDescriptor.keyboard(GLFW.GLFW_KEY_F)                          // plain keyboard key
+KeyDescriptor.keyboard(GLFW.GLFW_KEY_F, Modifiers(shift = true)) // Shift+F
+KeyDescriptor.mouse(GLFW.GLFW_MOUSE_BUTTON_4)                    // mouse side button
+KeyDescriptor()                                                   // unbound (UNKNOWN_KEY)
+```
+
+`Modifiers` supports `ctrl`, `shift`, and `alt` booleans.
+
+---
+
+### Contexts and modifiers
+
+`context` accepts one or more `KeyContext` values as a `vararg`. Passing nothing defaults to `ANY`.
+
+| Context | Fires when |
+|---|---|
+| `ANY` | Always (default) |
+| `IN_GAME` | No screen open |
+| `IN_CUSTOM_SCREEN` | A non-chat, non-handled screen is open (custom mod GUIs) |
+| `IN_CHAT` | Chat screen is open |
+| `IN_HANDLED_SCREEN` | Inventory, chest, crafting table, etc. |
+
+```kotlin
+// Single context — pass positionally after the required params
+KeybindRegistry.registerVirtual(id = "mymod.zoom", key = myKey, KeyContext.IN_GAME, onPress = { /* ... */ })
+
+// Multiple contexts — multiple positional vararg values
+KeybindRegistry.registerVirtual(id = "mymod.zoom", key = myKey, KeyContext.IN_GAME, KeyContext.IN_CUSTOM_SCREEN, onPress = { /* ... */ })
+
+// No context arg — defaults to ANY
+KeybindRegistry.registerVirtual(id = "mymod.zoom", key = myKey, onPress = { /* ... */ })
+```
+
+---
+
+### Callbacks
+
+| Callback | Signature | When called |
+|---|---|---|
+| `onPress` | `(MinecraftClient) -> Unit` | Leading edge — key goes down |
+| `onRelease` | `(MinecraftClient) -> Unit` | Trailing edge — key comes up |
+| `onHold` | `(MinecraftClient, Int) -> Unit` | Every `holdEveryTicks` ticks while held; second arg is hold tick count |
+| `onHandledScreen` | `(MinecraftClient, Slot) -> Unit` | Immediate key-press inside a handled screen; second arg is the hovered slot |
+
+All callbacks are optional and default to no-ops.
+
+---
+
+### KeybindHandle — lifecycle control
+
+<details>
+<summary>Unregister, block, and inspect keybinds at runtime</summary>
+
+```kotlin
+val handle = KeybindRegistry.registerVirtual(
+    id = "mymod.zoom",
+    key = KeyDescriptor.keyboard(GLFW.GLFW_KEY_C),
+)
+
+// Remove from dispatch permanently (releases if currently pressed):
+handle.unregister()
+handle.isRegistered  // false after unregister
+
+// Temporarily suppress without unregistering:
+handle.block()
+handle.unblock()
+```
+
+> **Note:** Unregistering a vanilla keybind removes it from SimpleCore's dispatch but does not remove it from Minecraft's keybinding options screen — Fabric provides no API for that.
+
+</details>
+
+---
+
+### Blocking
+
+<details>
+<summary>Global and context-level input suppression</summary>
+
+```kotlin
+// Pause all keybind processing (releases all pressed keys):
+KeybindRegistry.blockKeybind()
+KeybindRegistry.unblockKeybind()
+
+// Suppress specific contexts (e.g., during a cutscene):
+KeybindRegistry.blockContext(KeyContext.IN_GAME)
+KeybindRegistry.unblockContext(KeyContext.IN_GAME)
+
+// Per-keybind suppression via the handle:
+handle.block()
+handle.unblock()
+```
+
+</details>
 
 ---
 

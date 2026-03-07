@@ -2,17 +2,14 @@ package com.github.mikecraft1224
 
 import com.github.mikecraft1224.bus.EventBus
 import com.github.mikecraft1224.bus.FeatureAutoLoader
-import com.github.mikecraft1224.bus.api.Feature
 import com.github.mikecraft1224.input.KeybindRegistry
-import com.github.mikecraft1224.input.api.ConfigKeybind
 import com.github.mikecraft1224.input.api.KeyContext
+import com.github.mikecraft1224.input.api.KeyDescriptor
 import com.github.mikecraft1224.input.api.Modifiers
 import net.fabricmc.api.ClientModInitializer
 import net.minecraft.client.option.KeyBinding
 import org.lwjgl.glfw.GLFW
-import java.util.*
 
-@Feature
 object SimpleCore : ClientModInitializer {
 	val EVENTBUS = EventBus()
 
@@ -20,14 +17,14 @@ object SimpleCore : ClientModInitializer {
 		println("Hello this is ${BuildConfig.MOD_NAME} v${BuildConfig.MOD_VERSION}")
 
 		// Event Bus
+		FeatureAutoLoader.scanAndRegister(EVENTBUS, listOf("com.github.mikecraft1224"))
 		FeatureAutoLoader.loadOptInPackages(EVENTBUS)
 
 		KeybindRegistry.registerVanilla(
-			"Test Keybind",
-			KeyBinding.Category.MISC,  // Use built-in category, or create custom with KeyBinding.Category.create(Identifier.of("modid", "name"))
-			GLFW.GLFW_KEY_UNKNOWN,
-			EnumSet.of(KeyContext.ANY),
-			Modifiers(ctrl = true, shift = false, alt = false),
+			id = "key.simplecore.test",
+			category = KeyBinding.Category.MISC,
+			defaultKey = KeyDescriptor(modifiers = Modifiers(ctrl = true)),
+			KeyContext.ANY,
 			onPress = { println("Test Keybind Pressed") },
 			onRelease = { println("Test Keybind Released") },
 			onHold = { _, _ -> println("Test Keybind Held") },
@@ -35,9 +32,9 @@ object SimpleCore : ClientModInitializer {
 		)
 
 		KeybindRegistry.registerVirtual(
-			"Test Virtual Keybind",
-			ConfigKeybind(GLFW.GLFW_KEY_B, Modifiers(ctrl = false, shift = false, alt = false)),
-			EnumSet.of(KeyContext.ANY),
+			id = "simplecore.test_virtual",
+			key = KeyDescriptor.keyboard(GLFW.GLFW_KEY_B),
+			KeyContext.ANY,
 			onPress = { println("Test Virtual Keybind Pressed") },
 			onRelease = { println("Test Virtual Keybind Released") },
 			onHold = { _, _ -> println("Test Virtual Keybind Held") },
@@ -45,4 +42,3 @@ object SimpleCore : ClientModInitializer {
 		)
 	}
 }
-

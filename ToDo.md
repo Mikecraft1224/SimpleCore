@@ -38,15 +38,20 @@ A lightweight Fabric library mod providing common utilities for client-side Mine
 ### Keybind System `[DONE]`
 
 **Features:**
-- Vanilla keybinds with Fabric integration (`KeybindRegistry`)
-- Virtual keybinds independent of vanilla system (`VirtualKeybind`)
-- Context-aware activation (in-game only checks)
-- Modifier key support (Ctrl, Shift, Alt)
-- Configurable press modes: PRESS, RELEASE, HOLD, TOGGLE
-
-**Technical Debt:**
-- Thread-safety issues: `frame` and `blocked` fields in `KeybindRegistry.kt` are not `@Volatile`
-- Potential race conditions with concurrent keybind state access
+- Vanilla keybinds via `KeybindRegistry.registerVanilla` (Fabric `KeyBindingHelper` integration)
+- Virtual keybinds via `KeybindRegistry.registerVirtual` (no vanilla registration, fully runtime-managed)
+- `KeyDescriptor` — unified key descriptor using `InputUtil.Key`; factories `KeyDescriptor.keyboard(keyCode)` and `KeyDescriptor.mouse(button)` cover keyboard and mouse buttons
+- `KeybindHandle` returned by both register methods — `unregister()`, `block()`/`unblock()`, `isRegistered`
+- `KeyContext` — `ANY`, `IN_GAME`, `IN_CUSTOM_SCREEN`, `IN_CHAT`, `IN_HANDLED_SCREEN`; passed as `vararg` for ergonomic single-context calls
+- `Modifiers` (Ctrl, Shift, Alt) — `matches(Window)` for tick polling, `matchesMask(Int)` for event bitmask
+- Callbacks: `onPress`, `onRelease`, `onHold` (with `holdEveryTicks` throttle), `onHandledScreen`
+- Global blocking: `blockKeybind()` / `unblockKeybind()`
+- Context-level blocking: `blockContext(vararg KeyContext)` / `unblockContext(vararg KeyContext)`
+- Per-keybind blocking: `KeybindHandle.block()` / `unblock()` without unregistering
+- Mouse button support via `KeyDescriptor.mouse(button)` routing to `glfwGetMouseButton`
+- Runtime rebinding: `updateVirtualKeybind(id, KeyDescriptor)`
+- Id validation warnings: vanilla keys checked against `key.<modid>.<action>` convention; virtual warns on duplicate ids
+- Thread-safe: `@Volatile` on `frame`, `blocked`, `individuallyBlocked`; `blockedContexts` backed by `ConcurrentHashMap.newKeySet()`
 
 ---
 
@@ -147,12 +152,9 @@ Empty `command/` directory exists.
 
 ## Technical Debt & Issues
 
-### Critical
-1. **Thread-safety in KeybindRegistry** — `frame` and `blocked` fields need `@Volatile` annotation to ensure visibility across threads
-
 ### Low
-2. **Missing documentation** — No KDoc comments on public APIs
-3. **No example mod** — Would help demonstrate library usage
+1. **Missing documentation** — No KDoc comments on public APIs
+2. **No example mod** — Would help demonstrate library usage
 
 ---
 
