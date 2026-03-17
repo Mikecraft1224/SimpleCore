@@ -30,7 +30,7 @@ import kotlin.reflect.full.superclasses
  * - Selective handler removal via [RegistrationHandle]
  *
  * Notes for EventBus implementors:
- * Load Fabric-side hooks lazily — only when at least one handler is registered for a given
+ * Load Fabric-side hooks lazily - only when at least one handler is registered for a given
  * event type. Check [existHandlers] or [getRegisteredEventClasses] before registering hooks.
  * See [FeatureAutoLoader] and [com.github.mikecraft1224.bus.events.ClientTickEvent] for examples.
  */
@@ -59,7 +59,7 @@ class EventBus(
     )
 
     // -----------------------------------------------------------------------------------------
-    // Handler summary — safe read-only snapshot for introspection
+    // Handler summary - safe read-only snapshot for introspection
     // -----------------------------------------------------------------------------------------
 
     /**
@@ -119,7 +119,7 @@ class EventBus(
      * Scans [instance] for methods annotated with [Subscribe] and registers them as handlers.
      * Equivalent to [registerFeatureWithHandles] but discards the returned handles.
      *
-     * @param instance The feature object to scan. Must be fully initialised.
+     * @param instance The feature object to scan. Must be fully initialized.
      */
     fun registerFeature(instance: Any) {
         registerFeatureWithHandles(instance)
@@ -133,7 +133,7 @@ class EventBus(
      * down the entire feature. Handles are returned in the order the methods were discovered
      * by reflection, which is JVM-dependent and should not be relied upon.
      *
-     * @param instance The feature object to scan. Must be fully initialised.
+     * @param instance The feature object to scan. Must be fully initialized.
      * @return A list of handles, one per registered handler. Empty if no [Subscribe] methods
      *   were found or all failed validation.
      */
@@ -146,7 +146,7 @@ class EventBus(
             if (m.parameterCount != 1 || !Event::class.java.isAssignableFrom(m.parameterTypes[0])) {
                 Logger.warn(
                     "Method ${m.name} in ${clazz.name} is annotated with @Subscribe but does " +
-                    "not have a single parameter of type Event — skipping."
+                    "not have a single parameter of type Event - skipping."
                 )
                 continue
             }

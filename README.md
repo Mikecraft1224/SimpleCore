@@ -412,21 +412,142 @@ handle.unblock()
 
 ## Config System
 
-**Status: In Progress**
+SimpleCore provides a annotation-driven config system. You define a plain Kotlin class with annotated fields, and the library handles JSON persistence and GUI generation automatically.
 
-<details>
-<summary>What's done and what's missing</summary>
+---
 
-**Done — 13 annotation definitions for UI mapping:**
-`@Category`, `@Collapsible`, `@DefaultCollapsed`, `@Slider`, `@Dropdown`, `@ColorPicker`, `@Button`, `@TextField`, `@SearchField`, `@Separator`, `@ExcludeFromVisuals`, `@ExcludeFromConfig`, `@ListConfig`
+### Quick start
 
-**Missing:**
-- File persistence (JSON or TOML serialization)
-- Reflection-based annotation processor for automatic UI generation
-- GUI renderer (all field types)
-- Runtime config reloading
+**1. Define a config class**
 
-</details>
+```kotlin
+class MyConfig {
+    @Entry("Enable feature", "Turns the feature on or off")
+    @EditorBoolean
+    var enabled = true
+
+    @Entry("Speed", "Movement speed multiplier")
+    @EditorSlider(min = 0.5, max = 5.0, step = 0.5)
+    var speed = 1.0
+
+    @Entry("Mode")
+    @EditorDropdown                        // Enum — uses toString()
+    var mode = Mode.NORMAL
+
+    @Entry("Quality")
+    @EditorDropdown(values = ["Low", "Medium", "High"])   // Int backing field
+    var quality = 1
+
+    @Separator
+    @Entry("Blocked players", "Players to ignore")
+    @EditorMutable(defaultString = "")
+    var blockedPlayers: MutableList<String> = mutableListOf()
+
+    @Category("Advanced", "Advanced options")
+    var advanced = AdvancedSettings()
+}
+
+enum class Mode { NORMAL, FAST, STEALTH }
+
+class AdvancedSettings {
+    @Entry("Username")
+    @EditorText
+    var name = "Player"
+
+    @Entry("Accent colour")
+    @EditorColor
+    var color = java.awt.Color(0x5865F2)
+
+    @Collapsible
+    @Entry("Extra")
+    @DefaultCollapsed
+    var extra = ExtraSettings()
+}
+
+class ExtraSettings {
+    @Entry("Reset defaults")
+    @EditorButton("Reset")
+    var resetAction = Runnable { /* reset logic */ }
+}
+```
+
+**2. Create a manager and load on startup**
+
+```kotlin
+val config = MyConfig()
+val manager = ConfigManager.of(config, "mymod")  // saves to config/mymod.json
+
+// In your ClientModInitializer:
+manager.load()
+manager.onReload { println("Config reloaded: enabled=${it.enabled}") }
+```
+
+**3. Open the config screen**
+
+```kotlin
+// From a keybind or mod menu integration:
+client.setScreen(ConfigScreen(client.currentScreen, ConfigProcessor.process(config), manager))
+```
+
+---
+
+### Annotations reference
+
+| Annotation | Field type | Effect |
+|---|---|---|
+| `@Entry(name, description)` | any | Required to show the field in the GUI |
+| `@EditorBoolean` | `Boolean` | Toggle switch |
+| `@EditorSlider(min, max, step)` | `Int` / `Float` / `Double` | Slider with numeric display |
+| `@EditorDropdown` | `Enum` | Cycles through enum values using `toString()` |
+| `@EditorDropdown(values = [...])` | `Int` (index) or `String` (label) | Dropdown with explicit label list |
+| `@EditorText` | `String` | Text input field |
+| `@EditorButton(buttonText)` | `Runnable` | Clickable button (not saved to file) |
+| `@EditorColor` | `java.awt.Color` | Opens ARGB channel sliders with live preview |
+| `@EditorKeybind(defaultKey)` | `Int` (GLFW key code) | Keybind capture button |
+| `@EditorInfo` | `String` | Read-only label showing the field value |
+| `@EditorMutable` | `List<String/Int/Boolean>` | Opens list editor (add / edit / remove items) |
+| `@Category(name, description)` | nested object | Creates a separate category page |
+| `@Collapsible` | nested object | Inline collapsible group within the current page |
+| `@DefaultCollapsed` | (with `@Collapsible`) | Group starts collapsed |
+| `@Separator` | any field | Draws a horizontal divider line above the field |
+| `@Excluded(config, gui)` | any | Skip field from JSON (`config=true`) or GUI (`gui=true`, default) |
+
+---
+
+### Persistence
+
+`ConfigManager` uses Gson to serialize config fields to a pretty-printed JSON file.
+
+- On `save()`: writes to a `.tmp` file, validates it parses cleanly, then atomically replaces the target — no data loss on interrupted writes.
+- On `load()`: merges values in-place into the existing config instance — missing keys keep defaults, unknown keys are ignored.
+- `reload()` = `load()` + notifies `onReload` listeners.
+- `Runnable` fields and `@Excluded(config=true)` fields are never saved.
+
+---
+
+### Error handling
+
+```kotlin
+val manager = ConfigManager.of(MyConfig(), "mymod")
+    .onLoadFailed { e ->
+        // called if the config file is corrupt or unreadable
+        // config keeps its default values
+    }
+    .onSaveFailed { e ->
+        // called if the atomic write fails (e.g. disk full)
+    }
+```
+
+---
+
+### Runtime reloading
+
+```kotlin
+manager.onReload { updatedConfig ->
+    // called every time reload() is invoked (e.g., after the player edits the file)
+}
+manager.reload()
+```
 
 ---
 

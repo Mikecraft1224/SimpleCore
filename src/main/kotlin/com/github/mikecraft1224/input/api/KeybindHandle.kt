@@ -1,6 +1,11 @@
 package com.github.mikecraft1224.input.api
 
+import com.github.mikecraft1224.config.KeybindPacked
+import com.github.mikecraft1224.config.ProcessedConfig
+import com.github.mikecraft1224.config.ProcessedEntry
 import net.minecraft.client.MinecraftClient
+import net.minecraft.client.util.InputUtil
+import kotlin.reflect.KMutableProperty0
 
 /**
  * An opaque handle to a registered keybind, obtained from
@@ -68,5 +73,51 @@ class KeybindHandle internal constructor(
      */
     fun unblock() {
         action.individuallyBlocked = false
+    }
+
+    /**
+     * Links a config entry to this virtual keybind so that changing the key in the config screen
+     * also updates the runtime binding immediately without a restart.
+     *
+     * Only works with virtual keybinds ([KeySource.Virtual]). Vanilla keybinds backed by
+     * Fabric's [KeyBinding] cannot be rebound programmatically mid-session.
+     *
+     * Call this after [com.github.mikecraft1224.input.KeybindRegistry.registerVirtual] and after
+     * [com.github.mikecraft1224.config.ConfigProcessor.process] has produced the [entry].
+     *
+     * @return this handle for chaining
+     */
+    fun bindConfigEntry(entry: ProcessedEntry.KeybindEntry): KeybindHandle {
+        val virtualSource = action.source as? KeySource.Virtual
+        entry.onChanged = { packed ->
+            // Unpack the key code from the packed int (upper bits are modifier flags)
+            val keyCode = KeybindPacked.keyCode(packed)
+            virtualSource?.key = InputUtil.Type.KEYSYM.createFromCode(keyCode)
+        }
+        return this
+    }
+
+    /**
+     * Links a config field to this virtual keybind by Kotlin property reference.
+     *
+     * The matching [ProcessedEntry.KeybindEntry] is located by field name inside [model],
+     * so the binding is refactor-safe - no string names required.
+     *
+     * @param model the [ProcessedConfig] produced by [com.github.mikecraft1224.config.ConfigProcessor.process]
+     * @param field a property reference on the config object (e.g. `testConfig::configKey`)
+     * @return this handle for chaining
+     */
+    fun bindConfigField(model: ProcessedConfig, field: KMutableProperty0<Int>): KeybindHandle {
+        fun walk(entries: List<ProcessedEntry>): ProcessedEntry.KeybindEntry? {
+            for (e in entries) {
+                if (e is ProcessedEntry.KeybindEntry && e.fieldName == field.name) return e
+                if (e is ProcessedEntry.CollapsibleGroup) walk(e.children)?.let { return it }
+            }
+            return null
+        }
+        val entry = model.categories.firstNotNullOfOrNull { cat ->
+            walk(cat.entries) ?: cat.subcategories.firstNotNullOfOrNull { walk(it.entries) }
+        } ?: return this
+        return bindConfigEntry(entry)
     }
 }

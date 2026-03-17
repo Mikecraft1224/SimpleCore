@@ -19,7 +19,7 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Central registry for all keybinds — both vanilla (Fabric-registered [KeyBinding]) and
+ * Central registry for all keybinds - both vanilla (Fabric-registered [KeyBinding]) and
  * virtual (raw GLFW polling, supporting keyboard keys and mouse buttons).
  *
  * Keybinds are dispatched once per client tick at [ClientTickEvent.Phase.END].

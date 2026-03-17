@@ -4,7 +4,7 @@ package com.github.mikecraft1224.bus
  * A global ring-buffer monitor that records recent event dispatches from any [EventBus] running
  * with [EventBus.debugMode] enabled.
  *
- * Thread safety: [record] and [getRecent] are not synchronised — this monitor is intentionally
+ * Thread safety: [record] and [getRecent] are not synchronised - this monitor is intentionally
  * lightweight. Minor data races in the buffer boundary are acceptable for a debugging tool.
  *
  * Usage:

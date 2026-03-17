@@ -10,7 +10,7 @@ package com.github.mikecraft1224.input.api
  * activate inside handled screens.
  *
  * [IN_HANDLED_SCREEN] is a strict subset: it fires only inside handled screens. Registering both
- * [IN_CUSTOM_SCREEN] and [IN_HANDLED_SCREEN] in the same context set is redundant — [IN_CUSTOM_SCREEN]
+ * [IN_CUSTOM_SCREEN] and [IN_HANDLED_SCREEN] in the same context set is redundant - [IN_CUSTOM_SCREEN]
  * already covers handled screens.
  *
  * If you need a keybind that fires in custom/mod screens but NOT in handled screens, do not use

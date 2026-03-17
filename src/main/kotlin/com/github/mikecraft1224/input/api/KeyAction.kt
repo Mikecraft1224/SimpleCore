@@ -13,7 +13,7 @@ typealias HandledScreenCallback = (MinecraftClient, Slot) -> Unit
  * Represents a key action with associated callbacks and context.
  *
  * This is a read-only handle. Do not attempt to drive dispatch by calling
- * [press], [release], or [hold] directly — those are internal to the registry.
+ * [press], [release], or [hold] directly - those are internal to the registry.
  *
  * @property id Unique identifier for the key action.
  * @property source The source of the key action, either a vanilla key binding or a virtual key.

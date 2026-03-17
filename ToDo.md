@@ -3,9 +3,9 @@
 A lightweight Fabric library mod providing common utilities for client-side Minecraft modding.
 
 ## Status Legend
-- `[DONE]` — Feature complete, may have minor tech debt
-- `[IN PROGRESS]` — Partially implemented
-- `[NOT STARTED]` — Planned but no implementation yet
+- `[DONE]` - Feature complete, may have minor tech debt
+- `[IN PROGRESS]` - Partially implemented
+- `[NOT STARTED]` - Planned but no implementation yet
 
 ---
 
@@ -41,7 +41,7 @@ A lightweight Fabric library mod providing common utilities for client-side Mine
 - Vanilla keybinds via `KeybindRegistry.registerVanilla` (Fabric `KeyBindingHelper` integration)
 - Virtual keybinds via `KeybindRegistry.registerVirtual` (no vanilla registration, fully runtime-managed)
 - `KeyDescriptor` — unified key descriptor using `InputUtil.Key`; factories `KeyDescriptor.keyboard(keyCode)` and `KeyDescriptor.mouse(button)` cover keyboard and mouse buttons
-- `KeybindHandle` returned by both register methods — `unregister()`, `block()`/`unblock()`, `isRegistered`
+- `KeybindHandle` returned by both register methods - `unregister()`, `block()`/`unblock()`, `isRegistered`
 - `KeyContext` — `ANY`, `IN_GAME`, `IN_CUSTOM_SCREEN`, `IN_CHAT`, `IN_HANDLED_SCREEN`; passed as `vararg` for ergonomic single-context calls
 - `Modifiers` (Ctrl, Shift, Alt) — `matches(Window)` for tick polling, `matchesMask(Int)` for event bitmask
 - Callbacks: `onPress`, `onRelease`, `onHold` (with `holdEveryTicks` throttle), `onHandledScreen`
@@ -55,19 +55,28 @@ A lightweight Fabric library mod providing common utilities for client-side Mine
 
 ---
 
-### Config System `[IN PROGRESS]`
+### Config System `[DONE]`
 
 **Done:**
-- 13 annotation definitions for UI mapping:
-  - `@Category`, `@Collapsible`, `@DefaultCollapsed`
-  - `@Slider`, `@Dropdown`, `@ColorPicker`, `@Button`, `@TextField`, `@SearchField`
-  - `@Separator`, `@ExcludeFromVisuals`, `@ExcludeFromConfig`, `@ListConfig`
+- All annotation definitions: `@Category`, `@Collapsible`, `@DefaultCollapsed`, `@Separator`, `@Entry`, `@EditorBoolean`, `@EditorSlider`, `@EditorDropdown` (Enum / Int / String), `@EditorText`, `@EditorButton`, `@EditorColor`, `@EditorKeybind`, `@EditorInfo`, `@EditorMutable`, `@Excluded`, `@SearchTag`
+- `ConfigSerializer` - Gson reflection serializer with atomic write (tmp -> validate -> move) and in-place merge on load
+- `ConfigManager` - `save/load/reload/onReload/onSaveFailed/onLoadFailed`, migration DSL (`MigrationContext`: `rename`, `remove`, `transformValue`, `nested`)
+- `ConfigProcessor` - reflection processor building `ProcessedConfig` from any config object; populates `searchTags` from `@SearchTag`
+- `ConfigScreen` - two-panel screen (category list + scrollable entry list) with search bar (matches name and `@SearchTag` aliases), separator lines, collapsible groups, scrollbar, tooltips, subcategory accordion sidebar
+- List overlay (inline modal dialog): add/remove/edit items; drag-to-reorder via grab handle; text field z-order fixed so fields render above dialog background
+- Accordion-style collapsible groups: solid background header with left accent bar, depth-colored, bottom separator when expanded; tree-view guide lines for children; full recursive nesting supported
+- Color overlay (inline ARGB sliders with live preview, no separate screen push)
+- Dropdown overlay (inline popup list, works inside collapsible groups)
+- `KeybindHandle.bindConfigEntry(entry)` - links a virtual keybind to a config entry so GUI key changes update the runtime binding immediately
+- `@SearchTag` - hidden search aliases on `@Entry` fields
+- `@EditorKeybind` modifier support - packed Int format (bits 0-15 key code, 16 Ctrl, 17 Shift, 18 Alt) via `KeybindPacked`; GUI captures modifiers held at time of key press
+- `@Separator(label)` - optional text label on separator divider lines
+- Toggle switch visual for `@EditorBoolean` (pill-shaped, animated knob left/right)
+- Inline value text field for sliders (36 px input on right side of slider widget)
+- Color picker overhaul: HSV 2D spectrum + brightness/opacity sliders + hex field + preview swatch
+- `SimpleCore.enableExamples` flag; all example code moved to `ExampleLoader` in `config.examples`
 
-**Missing:**
-- File persistence (JSON or TOML serialization)
-- GUI renderer implementation
-- Reflection-based annotation processor for automatic UI generation
-- Runtime config reloading
+~~`MutableListScreen`~~ - deleted (replaced by `ListOverlay`)
 
 **Requirements (from original spec):**
 
@@ -153,8 +162,8 @@ Empty `command/` directory exists.
 ## Technical Debt & Issues
 
 ### Low
-1. **Missing documentation** — No KDoc comments on public APIs
-2. **No example mod** — Would help demonstrate library usage
+1. **Missing documentation** - No KDoc comments on public APIs
+2. **No example mod** - Would help demonstrate library usage
 
 ---
 
@@ -165,10 +174,9 @@ Empty `command/` directory exists.
 - [x] Remove or fix autoloader reference in `EventBus.kt`
 
 ### P1 — Complete Config System
-- [ ] Implement JSON/TOML file persistence
-- [ ] Build reflection-based annotation processor
-- [ ] Create GUI renderer with all field types
-- [ ] Add config reload support
+- [x] Implement JSON file persistence (`ConfigSerializer` + `ConfigManager`)
+- [x] Build reflection-based annotation processor (`ConfigProcessor`)
+- [x] Create GUI renderer with all field types (`ConfigScreen` + `ColorEditScreen`)
 
 ### P2 — New Features
 - [ ] Command system implementation
@@ -178,4 +186,4 @@ Empty `command/` directory exists.
 ### P3 — Polish
 - [ ] Add KDoc documentation
 - [ ] Create example mod
-- [ ] Write tests: cancellation semantics, polymorphic dispatch, concurrent register/unregister, filter behaviour
+- [ ] Write tests: cancellation semantics, polymorphic dispatch, concurrent register/unregister, filter behavior

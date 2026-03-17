@@ -23,7 +23,7 @@ object EventRegistry {
      *
      * **Multi-bus isolation:** The first bus receives the instance returned by [factory]. Every
      * subsequent bus receives a *fresh* instance produced by calling [factory] again. This is
-     * intentional — cancellation or mutation by one bus cannot bleed into another bus's handlers.
+     * intentional - cancellation or mutation by one bus cannot bleed into another bus's handlers.
      *
      * Cancellation is only tracked when [E] is a [CancellableEvent]. For non-cancellable events
      * this always returns `false`.

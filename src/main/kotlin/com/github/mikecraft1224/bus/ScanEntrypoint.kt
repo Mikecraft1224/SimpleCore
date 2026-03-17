@@ -12,7 +12,7 @@ import kotlin.reflect.KClass
  *   or test-only sub-packages that happen to reside inside a scanned package.
  * @property annotationClasses The annotation(s) used to mark feature classes. Defaults to
  *   [Feature]. Override to use a mod-local annotation instead of the shared [Feature] marker.
- *   All listed annotations are unioned — a class carrying any one of them is considered a feature.
+ *   All listed annotations are unioned - a class carrying any one of them is considered a feature.
  */
 data class FeatureScanRequest(
     val packages: List<String>,

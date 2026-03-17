@@ -15,7 +15,7 @@ import kotlin.reflect.full.companionObjectInstance
  * Utility to automatically load and register all classes annotated with [Feature] (or a
  * custom annotation) from packages declared by [ScanEntrypoint] Fabric entrypoints.
  *
- * Key behaviours:
+ * Key behaviors:
  * - Classes annotated with [@ConditionalFeature][ConditionalFeature] are only registered when
  *   their [FeatureCondition] returns `true`.
  * - [FeatureScanRequest.rejectedPackages] lets mods exclude internal sub-packages from the scan.
@@ -103,7 +103,7 @@ object FeatureAutoLoader {
                     val cls = ci.loadClass()
 
                     if (!checkCondition(cls)) {
-                        Logger.debug("[FeatureAutoLoader] Skipping ${cls.name} — condition returned false.")
+                        Logger.debug("[FeatureAutoLoader] Skipping ${cls.name} - condition returned false.")
                         continue
                     }
 

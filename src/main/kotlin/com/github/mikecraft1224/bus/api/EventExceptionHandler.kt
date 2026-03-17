@@ -6,7 +6,7 @@ import com.github.mikecraft1224.Logger
  * Handles exceptions thrown by event handlers during dispatch.
  *
  * Supply a custom implementation to [EventBus][com.github.mikecraft1224.bus.EventBus] to
- * control error behaviour: log-and-continue (default), rethrow in tests, suppress after
+ * control error behavior: log-and-continue (default), rethrow in tests, suppress after
  * repeated failures, etc.
  *
  * @see DefaultEventExceptionHandler
@@ -42,7 +42,7 @@ class DefaultEventExceptionHandler : EventExceptionHandler {
  * An [EventExceptionHandler] that wraps and rethrows any exception thrown by a handler.
  *
  * Intended for use in test environments where silent failure is unacceptable.
- * Do not use in production — this will crash the game on the first handler failure.
+ * Do not use in production - this will crash the game on the first handler failure.
  */
 class RethrowEventExceptionHandler : EventExceptionHandler {
     override fun onException(owner: Any, event: Event, throwable: Throwable) {
