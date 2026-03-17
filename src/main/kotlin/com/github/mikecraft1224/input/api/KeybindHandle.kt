@@ -80,7 +80,7 @@ class KeybindHandle internal constructor(
      * also updates the runtime binding immediately without a restart.
      *
      * Only works with virtual keybinds ([KeySource.Virtual]). Vanilla keybinds backed by
-     * Fabric's [KeyBinding] cannot be rebound programmatically mid-session.
+     * Fabric's [net.minecraft.client.option.KeyBinding] cannot be rebound programmatically mid-session.
      *
      * Call this after [com.github.mikecraft1224.input.KeybindRegistry.registerVirtual] and after
      * [com.github.mikecraft1224.config.ConfigProcessor.process] has produced the [entry].

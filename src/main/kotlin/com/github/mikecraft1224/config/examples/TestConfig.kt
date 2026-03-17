@@ -4,6 +4,7 @@ import com.github.mikecraft1224.BuildConfig
 import com.github.mikecraft1224.config.api.*
 import org.lwjgl.glfw.GLFW
 
+@Suppress("Unused")
 @Config(title = "SimpleCore Test", subtitle = "Developer testing config")
 class TestConfig {
 
@@ -68,8 +69,10 @@ class TestConfig {
     var advanced = AdvancedSettings()
 }
 
+@Suppress("Unused")
 enum class TestMode { NORMAL, FAST, STEALTH }
 
+@Suppress("Unused")
 class AdvancedSettings {
 
     @Entry("Multiplier", "Fine-grained multiplier applied on top of speed")
@@ -90,6 +93,7 @@ class AdvancedSettings {
     var network = NetworkSettings()
 }
 
+@Suppress("Unused")
 class NetworkSettings {
 
     @Entry("Timeout ms", "Connection timeout in milliseconds")
@@ -101,6 +105,7 @@ class NetworkSettings {
     var retryOnFail = true
 }
 
+@Suppress("Unused")
 class DebugSettings {
 
     @Entry("Debug mode", "Enable verbose logging")

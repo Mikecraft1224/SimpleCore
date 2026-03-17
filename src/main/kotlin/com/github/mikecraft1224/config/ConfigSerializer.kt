@@ -19,6 +19,7 @@ import kotlin.io.path.exists
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
+@Suppress("Unused")
 internal object ConfigSerializer {
 
     private val colorAdapter = object : TypeAdapter<Color>() {

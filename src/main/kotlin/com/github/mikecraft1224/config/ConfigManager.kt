@@ -43,6 +43,7 @@ import kotlin.io.path.readText
  * manager.save()
  * ```
  */
+@Suppress("Unused")
 class ConfigManager<T : Any>(
     val config: T,
     val file: Path,

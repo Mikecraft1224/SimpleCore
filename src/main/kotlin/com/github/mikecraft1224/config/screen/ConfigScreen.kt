@@ -1,10 +1,9 @@
 package com.github.mikecraft1224.config.screen
 
 import com.github.mikecraft1224.config.ConfigManager
-import com.github.mikecraft1224.config.ProcessedCategory
+import com.github.mikecraft1224.config.KeybindPacked
 import com.github.mikecraft1224.config.ProcessedConfig
 import com.github.mikecraft1224.config.ProcessedEntry
-import com.github.mikecraft1224.config.KeybindPacked
 import net.minecraft.client.gui.Click
 import net.minecraft.client.gui.DrawContext
 import net.minecraft.client.gui.screen.Screen
@@ -23,6 +22,7 @@ import kotlin.math.round
  * Left: category list. Top-right: title bar + search. Right: scrollable entry rows.
  * All config widgets are custom-drawn - only [TextFieldWidget] children are used (search + text entries).
  */
+@Suppress("Unused")
 class ConfigScreen(
     private val parent: Screen?,
     private val model: ProcessedConfig,

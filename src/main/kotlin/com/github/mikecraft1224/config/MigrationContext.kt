@@ -29,6 +29,7 @@ import com.google.gson.JsonObject
  *     }
  * ```
  */
+@Suppress("Unused")
 class MigrationContext internal constructor(internal var json: JsonObject) {
 
     /**

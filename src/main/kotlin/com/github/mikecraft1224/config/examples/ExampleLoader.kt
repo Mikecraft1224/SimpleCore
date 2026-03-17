@@ -12,7 +12,7 @@ import net.minecraft.client.option.KeyBinding
 import org.lwjgl.glfw.GLFW
 
 /**
- * Loads all example config machinery when [SimpleCore.enableExamples] is true.
+ * Loads all example config machinery when [com.github.mikecraft1224.SimpleCore.enableExamples] is true.
  *
  * Move this registration into your own mod's init if you want to replicate the
  * example setup in a downstream project.
