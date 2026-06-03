@@ -1,10 +1,18 @@
 {
   "required": true,
-  "package": "com.github.mikecraft1224.mixin",
+  "package": "com.github.mikecraft1224.simplecore.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "HandledScreenMixin",
-    "KeyBindingAccessor"
+    "event.ClientWorldMixin",
+    "event.ParticleReceiveMixin",
+    "event.PlaySoundMixin",
+    "event.ServerBlockChangeMixin",
+    "event.ServerTickMixin",
+    "event.SetScreenMixin",
+    "input.HandledScreenMixin",
+    "input.KeyBindingAccessor",
+    "input.MouseButtonMixin",
+    "render.GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
