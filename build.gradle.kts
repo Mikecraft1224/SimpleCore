@@ -7,6 +7,7 @@ plugins {
     id("dev.kikugie.loom-back-compat")
     kotlin("jvm") version "2.4.0"
     id("com.github.gmazzo.buildconfig") version "5.5.1"
+    `maven-publish`
 }
 
 version = "${property("mod.version")}+${sc.current.version}"
@@ -63,7 +64,7 @@ java {
         languageVersion.set(JavaLanguageVersion.of(requiredJava))
     }
 
-    // withSourcesJar()
+    withSourcesJar()
 }
 
 tasks.jar {
@@ -94,7 +95,9 @@ val expandProperties = mapOf(
     "mod_name" to property("mod.name") as String,
     "maven_group" to property("mod.group") as String,
     "mod_class" to property("mod.class") as String,
-    "minecraft_version" to "~${sc.current.version}",
+    // fabric.mod.json's own "minecraft": "~${minecraft_version}" template already adds the
+    // tilde version-range prefix - don't add a second one here.
+    "minecraft_version" to sc.current.version,
     "loader_version" to (sc.properties["deps.fabric_loader"] as String),
     "java_version" to requiredJava,
 )
@@ -102,5 +105,22 @@ val expandProperties = mapOf(
 tasks.processResources {
     filesMatching(listOf("fabric.mod.json", "**/*.mixins.json")) {
         expand(expandProperties)
+    }
+}
+
+// ---------------------
+// Publishing (local only for now - `./gradlew publishToMavenLocal`)
+// ---------------------
+// Remote publishing to Modrinth later uses the Minotaur plugin, not this block - Modrinth's own
+// maven (already used above as a dependency source) is read-only and isn't published to directly.
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            // artifactId stays constant across MC versions - the version string (e.g. "1.0.0+26.2")
+            // is what disambiguates which Minecraft version a given published jar targets.
+            artifactId = property("mod.archives_base_name") as String
+            from(components["java"])
+        }
     }
 }

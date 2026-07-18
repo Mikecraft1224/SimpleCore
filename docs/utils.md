@@ -175,6 +175,88 @@ entityLookingAt<Mob>(20.0) { it.health > 0 }           // with a predicate
 
 ---
 
+## Movement and rotation
+
+**`RotationUtils`** - reads and sets the player's *real* yaw/pitch. Every function here changes what's
+actually rendered and what's actually sent to the server, exactly as if the player moved the mouse - there is
+no fake-rotation mode that tells the server something different from what the client sees (that's a
+hit-validation bypass most servers treat as cheating, and this framework doesn't provide it).
+
+```kotlin
+RotationUtils.yaw                        // current real yaw
+RotationUtils.pitch                      // current real pitch
+
+RotationUtils.set(yaw, pitch)            // instant, exact
+RotationUtils.setYaw(yaw)                // keeps current pitch
+RotationUtils.setPitch(pitch)            // keeps current yaw
+
+RotationUtils.snapYaw(increment = 45f)   // snap current yaw to the nearest 45° (or 90°, etc)
+RotationUtils.snapPitch(increment = 45f)
+RotationUtils.resetPitch()               // pitch -> 0, level with the horizon
+
+RotationUtils.nearestCardinal()          // Direction - N/S/E/W closest to current yaw
+RotationUtils.snapToCardinal()           // snap yaw to that direction
+RotationUtils.face(Direction.NORTH)      // turn to face an exact cardinal direction
+
+RotationUtils.angleTo(from, to)          // Pair<Float, Float> - yaw/pitch to look from one point at another
+RotationUtils.lookAt(target)             // instantly face a Vec3
+RotationUtils.smoothTurnTo(yaw, pitch, ticks = 10)   // interpolated turn over N ticks (shortest path)
+RotationUtils.smoothLookAt(target, ticks = 10)
+```
+
+**`MovementUtils`** - simulates real WASD/jump/sprint/sneak input. Drives the same `ClientInput` state real
+key presses do, so movement physics and server-side validation see it exactly like genuine input. There's no
+position/velocity teleportation helper - only input simulation.
+
+```kotlin
+MovementUtils.setInput(forward = true, sprint = true)   // holds keys until changed again
+MovementUtils.walkForward(sprint = true)                 // shorthand for the common case
+MovementUtils.stopMovement()                             // release all movement keys
+MovementUtils.jump()                                     // a single jump, like tapping the key once
+```
+
+---
+
+## Interaction
+
+**`InteractionUtils`** - simulates the player's own left-click, right-click, and hotbar actions: the same
+client-to-server calls vanilla's own mouse/key handling makes, just triggered programmatically. Every function
+is a no-op if the player or game mode isn't loaded.
+
+```kotlin
+InteractionUtils.attack(entity)                       // left-click attack
+InteractionUtils.interact(entity, hand = InteractionHand.MAIN_HAND)   // right-click an entity (trade, mount, etc)
+
+InteractionUtils.useItem(hand = InteractionHand.MAIN_HAND)            // right-click in air (eat, drink, open a book)
+InteractionUtils.useItemOnBlock(hitResult, hand)                      // right-click a specific block hit
+InteractionUtils.useItemOnBlock(pos, face = Direction.UP, hand)       // convenience overload, builds the hit for you
+
+InteractionUtils.breakBlockInstant(pos)               // creative mode only - instant break
+InteractionUtils.startBreaking(pos, face)             // survival mining: call once to start...
+InteractionUtils.continueBreaking(pos, face)          // ...once per tick while mining...
+InteractionUtils.stopBreaking()                       // ...and once when done/cancelled
+
+InteractionUtils.selectHotbarSlot(slot)               // 0-8, same as pressing the number key
+InteractionUtils.swapToHotbar(containerSlot, hotbarSlot)  // swap any open menu's slot with a hotbar slot -
+                                                            // also works against the player's own inventory
+
+InteractionUtils.pickBlock(pos)                       // middle-click pick-block
+InteractionUtils.pickEntity(entity)                   // middle-click pick-block on an entity (e.g. spawn egg)
+```
+
+Typical pairing with [`RaycastUtils`](#entities) - act on whatever the player is currently looking at:
+
+```kotlin
+val target = entityLookingAt<Mob>(maxDistance = 4.0) ?: return
+InteractionUtils.attack(target)
+```
+
+`useItemOnBlock`/`startBreaking`/`continueBreaking` take a `Direction` (the block face) - use the `direction`
+from a `BlockHitResult` (e.g. from `raycastBlocks(...)`) when acting on whatever the player is actually looking at,
+rather than always defaulting to `Direction.UP`.
+
+---
+
 ## Items and inventory
 
 **`ItemUtils`** - extensions on `ItemStack` for the 26.2 data-component model:

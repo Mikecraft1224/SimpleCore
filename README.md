@@ -12,7 +12,7 @@ Lightweight Fabric client-side mod library - an event bus, keybind system, annot
 | Command System | Kotlin DSL over Brigadier, tab completion, permission guards, runtime enable/disable | [docs/command-system.md](docs/command-system.md) |
 | Overlay System | Draggable HUD panels, per-mod grouping, a built-in position editor | [docs/overlay-system.md](docs/overlay-system.md) |
 | Render System | World-space shapes/tracers/text (Gizmos-based) and 2D HUD drawing helpers | [docs/render-system.md](docs/render-system.md) |
-| Utils | Time/scheduling, numbers, chat, tab-list/scoreboard, sound, entities, raycasts, items | [docs/utils.md](docs/utils.md) |
+| Utils | Time/scheduling, numbers, chat, tab-list/scoreboard, sound, entities, raycasts, items, movement/rotation, simulated clicks/interaction | [docs/utils.md](docs/utils.md) |
 | Multi-version builds | How Stonecutter builds 26.1.2 + 26.2 from one codebase, and how to add a new version | [docs/multi-version.md](docs/multi-version.md) |
 
 ---

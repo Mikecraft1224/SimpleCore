@@ -105,6 +105,28 @@ import net.minecraft.commands.arguments.TeamColorArgument
   `stonecutter parameters { replacements { ... } }` block - prefer that over sprinkling `//? if` everywhere for a
   one-word rename that shows up in many places.
 
+## Consuming SimpleCore locally from another mod
+
+`maven-publish` is set up (`build.gradle.kts`) so downstream mods can depend on a locally-published copy while
+both are in development, ahead of a real Modrinth release:
+
+```bash
+./gradlew :26.1.2:publishToMavenLocal
+./gradlew "Set active project to 26.2"
+./gradlew :26.2:publishToMavenLocal
+./gradlew "Set active project to 26.1.2"   # switch back afterward
+```
+
+Each version publishes independently to `~/.m2` as `com.github.mikecraft1224.simplecore:simplecore:<mod.version>+<mc version>`
+(e.g. `1.0.0+26.1.2` and `1.0.0+26.2`), same group/artifactId, disambiguated by the version string - so re-publish
+whichever version(s) changed, no need to redo both every time. The consuming mod needs `mavenLocal()` in its own
+`repositories {}` and a dependency on the matching version string for whichever MC version *it* targets.
+
+This is local-only for now. Publishing to Modrinth proper later goes through the
+[Minotaur](https://modrinth.github.io/minotaur/) Gradle plugin instead - Modrinth's maven
+(already used here as a dependency source for Fabric API-adjacent artifacts) is read-only and isn't a valid
+`maven-publish` target.
+
 ## Known version differences (26.1.2 → 26.2)
 
 | API | 26.1.2 | 26.2 |
