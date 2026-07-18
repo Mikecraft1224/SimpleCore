@@ -1,13 +1,13 @@
 package com.github.mikecraft1224.simplecore.input.api
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.screen.slot.Slot
+import net.minecraft.client.Minecraft
+import net.minecraft.world.inventory.Slot
 import java.util.EnumSet
 
-typealias PressCallback = (MinecraftClient) -> Unit
-typealias ReleaseCallback = (MinecraftClient) -> Unit
-typealias HoldCallback = (MinecraftClient, Int) -> Unit
-typealias HandledScreenCallback = (MinecraftClient, Slot) -> Unit
+typealias PressCallback = (Minecraft) -> Unit
+typealias ReleaseCallback = (Minecraft) -> Unit
+typealias HoldCallback = (Minecraft, Int) -> Unit
+typealias HandledScreenCallback = (Minecraft, Slot) -> Unit
 
 /**
  * Represents a key action with associated callbacks and context.
@@ -44,7 +44,7 @@ class KeyAction internal constructor(
     @Volatile
     internal var individuallyBlocked: Boolean = false
 
-    internal fun press(client: MinecraftClient, currentFrame: Int) {
+    internal fun press(client: Minecraft, currentFrame: Int) {
         if (!pressed) {
             pressed = true
             holdTicks = 0
@@ -53,13 +53,13 @@ class KeyAction internal constructor(
         }
     }
 
-    internal fun release(client: MinecraftClient) {
+    internal fun release(client: Minecraft) {
         pressed = false
         holdTicks = 0
         onRelease.invoke(client)
     }
 
-    internal fun hold(client: MinecraftClient) {
+    internal fun hold(client: Minecraft) {
         holdTicks++
         if (holdEveryTicks != null && holdEveryTicks > 0 && holdTicks % holdEveryTicks == 0) {
             onHold.invoke(client, holdTicks)

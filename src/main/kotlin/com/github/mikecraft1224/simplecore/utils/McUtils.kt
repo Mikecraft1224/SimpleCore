@@ -2,11 +2,12 @@
 
 package com.github.mikecraft1224.simplecore.utils
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.client.world.ClientWorld
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Vec3d
+import com.github.mikecraft1224.simplecore.input.internal.ScreenTracker
+import net.minecraft.client.Minecraft
+import net.minecraft.client.multiplayer.ClientLevel
+import net.minecraft.client.player.LocalPlayer
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.Vec3
 
 /**
  * Null-safe accessors for common Minecraft client singletons.
@@ -25,17 +26,16 @@ import net.minecraft.util.math.Vec3d
  * ```
  */
 object McUtils {
-    val mc: MinecraftClient get() = MinecraftClient.getInstance()
-    val player: ClientPlayerEntity? get() = mc.player
-    val world: ClientWorld? get() = mc.world
+    val mc: Minecraft get() = Minecraft.getInstance()
+    val player: LocalPlayer? get() = mc.player
+    val world: ClientLevel? get() = mc.level
     /** `true` when both [player] and [world] are non-null. */
     val isInGame: Boolean get() = player != null && world != null
-    /** `true` when a GUI screen (inventory, chat, etc.) is currently open. */
-    val isScreenOpen: Boolean get() = mc.currentScreen != null
-    val playerPos: BlockPos? get() = player?.blockPos
-    /** Foot-level position of the local player as [Vec3d]. */
-    val playerVec: Vec3d? get() = player?.let { Vec3d(it.x, it.y, it.z) }
+    val isScreenOpen: Boolean get() = ScreenTracker.currentScreen != null
+    val playerPos: BlockPos? get() = player?.blockPosition()
+    /** Foot-level position of the local player as [Vec3]. */
+    val playerVec: Vec3? get() = player?.let { Vec3(it.x, it.y, it.z) }
     /** Eye-level position of the local player. */
-    val playerEyePos: Vec3d? get() = player?.eyePos
-    val isFirstPerson: Boolean get() = mc.options.perspective.isFirstPerson
+    val playerEyePos: Vec3? get() = player?.eyePosition
+    val isFirstPerson: Boolean get() = mc.options.cameraType.isFirstPerson
 }

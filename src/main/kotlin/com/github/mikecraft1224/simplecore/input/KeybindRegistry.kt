@@ -6,14 +6,15 @@ import com.github.mikecraft1224.simplecore.bus.api.Subscribe
 import com.github.mikecraft1224.simplecore.bus.events.ClientTickEvent
 import com.github.mikecraft1224.simplecore.bus.events.InventoryKeyPressEvent
 import com.github.mikecraft1224.simplecore.input.api.*
+import com.github.mikecraft1224.simplecore.input.internal.ScreenTracker
 import com.github.mikecraft1224.simplecore.mixin.input.KeyBindingAccessor
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.gui.screen.ChatScreen
-import net.minecraft.client.gui.screen.ingame.HandledScreen
-import net.minecraft.client.input.KeyInput
-import net.minecraft.client.option.KeyBinding
-import net.minecraft.client.util.InputUtil
+import com.mojang.blaze3d.platform.InputConstants
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
+import net.minecraft.client.KeyMapping
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.ChatScreen
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
+import net.minecraft.client.input.KeyEvent
 import org.lwjgl.glfw.GLFW
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -50,6 +51,9 @@ object KeybindRegistry {
 
     private val keyActions = mutableMapOf<String, KeyAction>()
 
+    /** Number of keybinds currently registered (vanilla and virtual combined). */
+    val registeredCount: Int get() = keyActions.size
+
     @Volatile
     private var frame = 0
 
@@ -67,18 +71,18 @@ object KeybindRegistry {
     // -------------------------------------------------------------------------
 
     /**
-     * Returns `true` if the given [InputUtil.Key] is currently held down.
+     * Returns `true` if the given [InputConstants.Key] is currently held down.
      *
-     * Handles both keyboard keys ([InputUtil.Type.KEYSYM]) and mouse buttons
-     * ([InputUtil.Type.MOUSE]) by routing to the appropriate GLFW query.
+     * Handles both keyboard keys ([InputConstants.Type.KEYSYM]) and mouse buttons
+     * ([InputConstants.Type.MOUSE]) by routing to the appropriate GLFW query.
      *
      * @param key The key or mouse button to query.
      */
-    fun isKeyDown(key: InputUtil.Key): Boolean {
-        val windowHandle = MinecraftClient.getInstance().window.handle
-        return when (key.category) {
-            InputUtil.Type.KEYSYM -> GLFW.glfwGetKey(windowHandle, key.code) == GLFW.GLFW_PRESS
-            InputUtil.Type.MOUSE  -> GLFW.glfwGetMouseButton(windowHandle, key.code) == GLFW.GLFW_PRESS
+    fun isKeyDown(key: InputConstants.Key): Boolean {
+        val windowHandle = Minecraft.getInstance().window.handle()
+        return when (key.type) {
+            InputConstants.Type.KEYSYM -> GLFW.glfwGetKey(windowHandle, key.value) == GLFW.GLFW_PRESS
+            InputConstants.Type.MOUSE  -> GLFW.glfwGetMouseButton(windowHandle, key.value) == GLFW.GLFW_PRESS
             else                  -> false
         }
     }
@@ -89,7 +93,7 @@ object KeybindRegistry {
      * @param keyCode A GLFW key constant (e.g. `GLFW.GLFW_KEY_C`).
      */
     fun isKeyDown(keyCode: Int): Boolean =
-        isKeyDown(InputUtil.Type.KEYSYM.createFromCode(keyCode))
+        isKeyDown(InputConstants.Type.KEYSYM.getOrCreate(keyCode))
 
     // -------------------------------------------------------------------------
     // Registration
@@ -118,7 +122,7 @@ object KeybindRegistry {
      */
     fun registerVanilla(
         id: String,
-        category: KeyBinding.Category = KeyBinding.Category.MISC,
+        category: KeyMapping.Category = KeyMapping.Category.MISC,
         defaultKey: KeyDescriptor = KeyDescriptor(),
         vararg context: KeyContext,
         holdEveryTicks: Int = 1,
@@ -127,11 +131,11 @@ object KeybindRegistry {
         onHold: HoldCallback = { _, _ -> },
         onHandledScreen: HandledScreenCallback = { _, _ -> },
     ): KeybindHandle {
-        val kb = KeyBindingHelper.registerKeyBinding(
-            KeyBinding(
+        val kb = KeyMappingHelper.registerKeyMapping(
+            KeyMapping(
                 id,
-                InputUtil.Type.KEYSYM,
-                defaultKey.key.code,
+                InputConstants.Type.KEYSYM,
+                defaultKey.key.value,
                 category,
             )
         )
@@ -303,9 +307,9 @@ object KeybindRegistry {
         }
 
         val win = event.client.window
-        val screen = event.client.currentScreen
+        val screen = ScreenTracker.currentScreen
         val inChat = screen is ChatScreen
-        val inHandledScreen = screen is HandledScreen<*>
+        val inHandledScreen = screen is AbstractContainerScreen<*>
 
         keyActions.forEach { _, action ->
             // --- Global context-block check ---
@@ -369,9 +373,9 @@ object KeybindRegistry {
     private fun onInventoryKeyPress(event: InventoryKeyPressEvent) {
         if (blocked) return
 
-        val client = MinecraftClient.getInstance()
-        val screen = client.currentScreen
-        if (screen !is HandledScreen<*>) return
+        val client = Minecraft.getInstance()
+        val screen = ScreenTracker.currentScreen
+        if (screen !is AbstractContainerScreen<*>) return
 
         keyActions.values.forEach { action ->
             if (action.individuallyBlocked) return@forEach
@@ -380,8 +384,8 @@ object KeybindRegistry {
             if (!action.modifiers.matchesMask(event.modifiers)) return@forEach
 
             val matches = when (val src = action.source) {
-                is KeySource.Virtual -> src.key.code == event.keyCode
-                is KeySource.Vanilla -> src.keyBinding.matchesKey(KeyInput(event.keyCode, event.scanCode, event.modifiers))
+                is KeySource.Virtual -> src.key.value == event.keyCode
+                is KeySource.Vanilla -> src.keyBinding.matches(KeyEvent(event.keyCode, event.scanCode, event.modifiers))
             }
             if (!matches) return@forEach
 

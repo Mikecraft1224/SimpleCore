@@ -1,7 +1,7 @@
 package com.github.mikecraft1224.simplecore.input.api
 
 import com.github.mikecraft1224.simplecore.config.api.values.Keybind
-import net.minecraft.client.util.InputUtil
+import com.mojang.blaze3d.platform.InputConstants
 
 /**
  * Describes a key or mouse button binding together with its required modifier keys.
@@ -25,7 +25,7 @@ import net.minecraft.client.util.InputUtil
  * ```
  */
 data class KeyDescriptor(
-    var key: InputUtil.Key = InputUtil.UNKNOWN_KEY,
+    var key: InputConstants.Key = InputConstants.UNKNOWN,
     var modifiers: Modifiers = Modifiers(),
 ) {
     companion object {
@@ -36,7 +36,7 @@ data class KeyDescriptor(
          * @param modifiers Required modifier keys. Defaults to no modifiers.
          */
         fun keyboard(keyCode: Int, modifiers: Modifiers = Modifiers()): KeyDescriptor =
-            KeyDescriptor(InputUtil.Type.KEYSYM.createFromCode(keyCode), modifiers)
+            KeyDescriptor(InputConstants.Type.KEYSYM.getOrCreate(keyCode), modifiers)
 
         /**
          * Creates a [KeyDescriptor] for a mouse button identified by its GLFW button index.
@@ -45,7 +45,7 @@ data class KeyDescriptor(
          * @param modifiers Required modifier keys. Defaults to no modifiers.
          */
         fun mouse(button: Int, modifiers: Modifiers = Modifiers()): KeyDescriptor =
-            KeyDescriptor(InputUtil.Type.MOUSE.createFromCode(button), modifiers)
+            KeyDescriptor(InputConstants.Type.MOUSE.getOrCreate(button), modifiers)
 
         /**
          * Creates a [KeyDescriptor] from a config [Keybind] value, preserving its key code
@@ -63,9 +63,9 @@ data class KeyDescriptor(
         fun from(keybind: Keybind): KeyDescriptor =
             KeyDescriptor(
                 key = if (keybind.isMouse)
-                    InputUtil.Type.MOUSE.createFromCode(keybind.keyCode)
+                    InputConstants.Type.MOUSE.getOrCreate(keybind.keyCode)
                 else
-                    InputUtil.Type.KEYSYM.createFromCode(keybind.keyCode),
+                    InputConstants.Type.KEYSYM.getOrCreate(keybind.keyCode),
                 modifiers = Modifiers(ctrl = keybind.ctrl, shift = keybind.shift, alt = keybind.alt),
             )
     }

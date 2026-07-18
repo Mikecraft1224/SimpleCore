@@ -17,7 +17,7 @@ import com.github.mikecraft1224.simplecore.config.screen.ConfigLayout.C_TEXT
 import com.github.mikecraft1224.simplecore.config.screen.ConfigOverlay
 import com.github.mikecraft1224.simplecore.config.screen.ConfigScreenCtx
 import com.github.mikecraft1224.simplecore.config.screen.OverlayLayer
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import org.lwjgl.glfw.GLFW
 import kotlin.math.max
 
@@ -61,25 +61,25 @@ class ObjectListOverlay(
     override fun hitTests(mx: Int, my: Int): Boolean =
         mx in dlgX until dlgX + DLG_W && my in dlgY until dlgY + DLG_H
 
-    override fun render(ctx: DrawContext, mx: Int, my: Int) {
+    override fun render(state: GuiGraphicsExtractor, mx: Int, my: Int) {
         val dx   = dlgX; val dy = dlgY
         val delX = dx + DLG_W - PAD - DEL_W
         val editX = delX - EDIT_W - 4
-        val accent = this.ctx.accentColor()
+        val accent = ctx.accentColor()
 
-        ctx.fill(0, 0, this.ctx.getW(), this.ctx.getH(), C_DIM)
-        ctx.fill(dx, dy, dx + DLG_W, dy + DLG_H, C_MANTLE)
-        ctx.fill(dx,             dy,             dx + DLG_W, dy + 1,      C_SURFACE1)
-        ctx.fill(dx,             dy + DLG_H - 1, dx + DLG_W, dy + DLG_H, C_SURFACE1)
-        ctx.fill(dx,             dy,             dx + 1,     dy + DLG_H,  C_SURFACE1)
-        ctx.fill(dx + DLG_W - 1, dy,             dx + DLG_W, dy + DLG_H, C_SURFACE1)
-        ctx.drawCenteredTextWithShadow(this.ctx.tr, "Edit: ${entry.name}", dx + DLG_W / 2, dy + 8, C_TEXT)
-        ctx.fill(dx + 1, dy + 22, dx + DLG_W - 1, dy + 23, C_SURFACE0)
+        state.fill(0, 0, ctx.getW(), ctx.getH(), C_DIM)
+        state.fill(dx, dy, dx + DLG_W, dy + DLG_H, C_MANTLE)
+        state.fill(dx,             dy,             dx + DLG_W, dy + 1,      C_SURFACE1)
+        state.fill(dx,             dy + DLG_H - 1, dx + DLG_W, dy + DLG_H, C_SURFACE1)
+        state.fill(dx,             dy,             dx + 1,     dy + DLG_H,  C_SURFACE1)
+        state.fill(dx + DLG_W - 1, dy,             dx + DLG_W, dy + DLG_H, C_SURFACE1)
+        state.centeredText(ctx.tr, "Edit: ${entry.name}", dx + DLG_W / 2, dy + 8, C_TEXT)
+        state.fill(dx + 1, dy + 22, dx + DLG_W - 1, dy + 23, C_SURFACE0)
 
         val addHov = mx in dx + PAD until dx + PAD + 54 && my in dy + 26 until dy + 42
-        ctx.fill(dx + PAD, dy + 26, dx + PAD + 54, dy + 42, if (addHov) C_SURFACE1 else C_SURFACE0)
-        ctx.drawCenteredTextWithShadow(this.ctx.tr, "+ Add", dx + PAD + 27, dy + 30, C_TEXT)
-        ctx.fill(dx + 1, lstTop - 1, dx + DLG_W - 1, lstTop, C_SURFACE0)
+        state.fill(dx + PAD, dy + 26, dx + PAD + 54, dy + 42, if (addHov) C_SURFACE1 else C_SURFACE0)
+        state.centeredText(ctx.tr, "+ Add", dx + PAD + 27, dy + 30, C_TEXT)
+        state.fill(dx + 1, lstTop - 1, dx + DLG_W - 1, lstTop, C_SURFACE0)
 
         fun drawRow(origIdx: Int, value: Any, ry: Int, lifted: Boolean = false) {
             val handleHov = lifted || (mx in dx + 2 until dx + PAD + HANDLE_W && my in ry until ry + ITEM_H)
@@ -87,33 +87,33 @@ class ObjectListOverlay(
             val hx = dx + 3
             for (line in 0..2) {
                 val hy = ry + (ITEM_H / 2) - 4 + line * 4
-                ctx.fill(hx, hy, hx + HANDLE_W - 4, hy + 2, hColor)
+                state.fill(hx, hy, hx + HANDLE_W - 4, hy + 2, hColor)
             }
             val idxLabel = "${origIdx + 1}."
-            val idxW = this.ctx.tr.getWidth("${list.size + 1}.")
-            ctx.drawText(this.ctx.tr, idxLabel, dx + PAD + HANDLE_W,
-                ry + (ITEM_H - this.ctx.tr.fontHeight) / 2, C_OVERLAY0, false)
+            val idxW = ctx.tr.width("${list.size + 1}.")
+            state.text(ctx.tr, idxLabel, dx + PAD + HANDLE_W,
+                ry + (ITEM_H - ctx.tr.lineHeight) / 2, C_OVERLAY0, false)
             val labelX = dx + PAD + HANDLE_W + idxW + 4
             val labelMaxW = editX - labelX - 4
             val label = entry.elementLabel(value)
-            val truncated = if (this.ctx.tr.getWidth(label) <= labelMaxW) label
-                            else this.ctx.tr.trimToWidth(label, labelMaxW - this.ctx.tr.getWidth("…")) + "…"
-            ctx.drawText(this.ctx.tr, truncated, labelX,
-                ry + (ITEM_H - this.ctx.tr.fontHeight) / 2, C_TEXT, false)
+            val truncated = if (ctx.tr.width(label) <= labelMaxW) label
+                            else ctx.tr.plainSubstrByWidth(label, labelMaxW - ctx.tr.width("…")) + "…"
+            state.text(ctx.tr, truncated, labelX,
+                ry + (ITEM_H - ctx.tr.lineHeight) / 2, C_TEXT, false)
             if (!lifted) {
                 val isEditing = elementEditor?.elementIndex == origIdx
                 val editHov = mx in editX until editX + EDIT_W && my in ry + 3 until ry + ITEM_H - 3
-                ctx.fill(editX, ry + 3, editX + EDIT_W, ry + ITEM_H - 3,
+                state.fill(editX, ry + 3, editX + EDIT_W, ry + ITEM_H - 3,
                     if (isEditing) accent else if (editHov) C_SURFACE1 else C_SURFACE0)
-                val ew = this.ctx.tr.getWidth("Edit")
-                ctx.drawText(this.ctx.tr, "Edit", editX + (EDIT_W - ew) / 2,
-                    ry + (ITEM_H - this.ctx.tr.fontHeight) / 2, C_TEXT, false)
+                val ew = ctx.tr.width("Edit")
+                state.text(ctx.tr, "Edit", editX + (EDIT_W - ew) / 2,
+                    ry + (ITEM_H - ctx.tr.lineHeight) / 2, C_TEXT, false)
             }
             val delHov = !lifted && mx in delX until delX + DEL_W && my in ry + 3 until ry + ITEM_H - 3
-            ctx.fill(delX, ry + 3, delX + DEL_W, ry + ITEM_H - 3, if (delHov) C_RED else C_SURFACE0)
-            val xw = this.ctx.tr.getWidth("×")
-            ctx.drawText(this.ctx.tr, "×", delX + (DEL_W - xw) / 2,
-                ry + (ITEM_H - this.ctx.tr.fontHeight) / 2, C_TEXT, false)
+            state.fill(delX, ry + 3, delX + DEL_W, ry + ITEM_H - 3, if (delHov) C_RED else C_SURFACE0)
+            val xw = ctx.tr.width("×")
+            state.text(ctx.tr, "×", delX + (DEL_W - xw) / 2,
+                ry + (ITEM_H - ctx.tr.lineHeight) / 2, C_TEXT, false)
         }
 
         if (dragIdx >= 0) {
@@ -127,52 +127,52 @@ class ObjectListOverlay(
                 }
                 if (-1 !in this) add(-1)
             }
-            ctx.enableScissor(dx, lstTop, dx + DLG_W, lstBot)
+            state.enableScissor(dx, lstTop, dx + DLG_W, lstBot)
             for ((slot, origIdx) in renderOrder.withIndex()) {
                 val ry = lstTop + slot * ITEM_H - scroll
                 if (ry + ITEM_H <= lstTop || ry >= lstBot) continue
                 if (origIdx == -1) {
-                    ctx.fill(dx + PAD, ry + 4, dx + DLG_W - PAD, ry + ITEM_H - 4, C_DRAG_INSERT)
-                    ctx.fill(dx + PAD, ry + 4, dx + DLG_W - PAD, ry + 5, accent)
-                    ctx.fill(dx + PAD, ry + ITEM_H - 5, dx + DLG_W - PAD, ry + ITEM_H - 4, accent)
+                    state.fill(dx + PAD, ry + 4, dx + DLG_W - PAD, ry + ITEM_H - 4, C_DRAG_INSERT)
+                    state.fill(dx + PAD, ry + 4, dx + DLG_W - PAD, ry + 5, accent)
+                    state.fill(dx + PAD, ry + ITEM_H - 5, dx + DLG_W - PAD, ry + ITEM_H - 4, accent)
                     continue
                 }
                 if (mx in dx until dx + DLG_W && my in ry until ry + ITEM_H)
-                    ctx.fill(dx, ry, dx + DLG_W, ry + ITEM_H, C_ROW_HOVER)
+                    state.fill(dx, ry, dx + DLG_W, ry + ITEM_H, C_ROW_HOVER)
                 drawRow(origIdx, list[origIdx], ry)
             }
-            ctx.disableScissor()
+            state.disableScissor()
             val floatY = (dragY - dragOffsetY).coerceIn(lstTop - ITEM_H / 2, lstBot - ITEM_H / 2)
-            ctx.fill(dx + 1, floatY, dx + DLG_W - 1, floatY + ITEM_H, C_DRAG_GHOST)
-            ctx.fill(dx + 1, floatY, dx + DLG_W - 1, floatY + 1, accent)
-            ctx.fill(dx + 1, floatY + ITEM_H - 1, dx + DLG_W - 1, floatY + ITEM_H, accent)
+            state.fill(dx + 1, floatY, dx + DLG_W - 1, floatY + ITEM_H, C_DRAG_GHOST)
+            state.fill(dx + 1, floatY, dx + DLG_W - 1, floatY + 1, accent)
+            state.fill(dx + 1, floatY + ITEM_H - 1, dx + DLG_W - 1, floatY + ITEM_H, accent)
             drawRow(dragIdx, list[dragIdx], floatY, lifted = true)
         } else {
-            ctx.enableScissor(dx, lstTop, dx + DLG_W, lstBot)
+            state.enableScissor(dx, lstTop, dx + DLG_W, lstBot)
             for ((i, value) in list.withIndex()) {
                 val ry = lstTop + i * ITEM_H - scroll
                 if (ry + ITEM_H <= lstTop || ry >= lstBot) continue
                 if (mx in dx until dx + DLG_W && my in ry until ry + ITEM_H)
-                    ctx.fill(dx, ry, dx + DLG_W, ry + ITEM_H, C_ROW_HOVER)
+                    state.fill(dx, ry, dx + DLG_W, ry + ITEM_H, C_ROW_HOVER)
                 drawRow(i, value, ry)
             }
-            ctx.disableScissor()
+            state.disableScissor()
         }
 
         if (maxSc > 0) {
             val thumbH = (visH * visH.toFloat() / (list.size * ITEM_H)).toInt().coerceAtLeast(16)
             val thumbY = lstTop + ((scroll.toFloat() / maxSc) * (visH - thumbH)).toInt()
-            ctx.fill(dx + DLG_W - 3, lstTop, dx + DLG_W - 1, lstBot, C_SCROLLBAR_TRACK)
-            ctx.fill(dx + DLG_W - 3, thumbY, dx + DLG_W - 1, thumbY + thumbH, C_SCROLLBAR_THUMB)
+            state.fill(dx + DLG_W - 3, lstTop, dx + DLG_W - 1, lstBot, C_SCROLLBAR_TRACK)
+            state.fill(dx + DLG_W - 3, thumbY, dx + DLG_W - 1, thumbY + thumbH, C_SCROLLBAR_THUMB)
         }
 
-        ctx.fill(dx + 1, lstBot, dx + DLG_W - 1, lstBot + 1, C_SURFACE0)
+        state.fill(dx + 1, lstBot, dx + DLG_W - 1, lstBot + 1, C_SURFACE0)
         val bw = 74; val bh = 16
         val bx = dx + DLG_W / 2 - bw / 2
         val doneY = lstBot + 8
         val doneHov = mx in bx until bx + bw && my in doneY until doneY + bh
-        ctx.fill(bx, doneY, bx + bw, doneY + bh, if (doneHov) C_SURFACE1 else C_SURFACE0)
-        ctx.drawCenteredTextWithShadow(this.ctx.tr, "Done", bx + bw / 2, doneY + (bh - this.ctx.tr.fontHeight) / 2, C_TEXT)
+        state.fill(bx, doneY, bx + bw, doneY + bh, if (doneHov) C_SURFACE1 else C_SURFACE0)
+        state.centeredText(ctx.tr, "Done", bx + bw / 2, doneY + (bh - ctx.tr.lineHeight) / 2, C_TEXT)
     }
 
     private fun openEditor(idx: Int) {

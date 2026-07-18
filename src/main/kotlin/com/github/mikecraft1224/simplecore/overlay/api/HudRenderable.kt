@@ -1,13 +1,13 @@
 package com.github.mikecraft1224.simplecore.overlay.api
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphicsExtractor
 
 /**
  * A composable display element for [HudElement] overlays.
  *
  * Each renderable knows its pixel dimensions and draws itself at a caller-supplied local offset
- * within an already-translated [DrawContext]. Mouse coordinates are in element-local space
+ * within an already-translated [GuiGraphicsExtractor]. Mouse coordinates are in element-local space
  * (i.e. `(screenMouse - elementOrigin) / scale`) so hit-testing is simply a range check.
  *
  * Build your display list with the factory functions on the companion object and override
@@ -33,13 +33,13 @@ sealed interface HudRenderable {
     /**
      * Draws this element.
      *
-     * @param ctx   DrawContext already translated to the [HudElement]'s local origin.
+     * @param state   GuiGraphicsExtractor already translated to the [HudElement]'s local origin.
      * @param localMx Mouse X in element-local pixels: `(screenMx - absX) / scale`.
      * @param localMy Mouse Y in element-local pixels: `(screenMy - absY) / scale`.
      * @param lx    Local X offset of this renderable's top-left corner.
      * @param ly    Local Y offset of this renderable's top-left corner.
      */
-    fun render(ctx: DrawContext, localMx: Int, localMy: Int, lx: Int, ly: Int)
+    fun render(state: GuiGraphicsExtractor, localMx: Int, localMy: Int, lx: Int, ly: Int)
 
     /**
      * Routes a mouse-button press to this element.
@@ -53,9 +53,11 @@ sealed interface HudRenderable {
          * A plain colored text line. Supports Minecraft format codes (§x).
          *
          * @param color ARGB color. Format codes in the string take precedence.
-         *              Defaults to `0xFFFFFF` (opaque white via MC's alpha-0-means-opaque convention).
+         *              Defaults to opaque white. Must include the alpha byte (`0xFF` prefix) -
+         *              unlike pre-26.2, [net.minecraft.client.gui.GuiGraphicsExtractor.text] now
+         *              skips drawing entirely when alpha is 0, rather than treating it as opaque.
          */
-        fun text(text: String, color: Int = 0xFFFFFF, shadow: Boolean = true): HudRenderable =
+        fun text(text: String, color: Int = 0xFFFFFFFF.toInt(), shadow: Boolean = true): HudRenderable =
             TextLine(text, color, shadow)
 
         /**
@@ -65,7 +67,7 @@ sealed interface HudRenderable {
          */
         fun hoverable(
             text: String,
-            color: Int = 0xFFFFFF,
+            color: Int = 0xFFFFFFFF.toInt(),
             tooltip: List<String>,
             shadow: Boolean = true,
         ): HudRenderable = HoverableLine(text, color, shadow, tooltip)
@@ -78,7 +80,7 @@ sealed interface HudRenderable {
          */
         fun clickable(
             text: String,
-            color: Int = 0xFFFFFF,
+            color: Int = 0xFFFFFFFF.toInt(),
             tooltip: List<String> = emptyList(),
             shadow: Boolean = true,
             onClick: (button: Int) -> Unit,
@@ -106,7 +108,7 @@ sealed interface HudRenderable {
          * Stacks [children] vertically with [spacing] pixels between each element.
          *
          * This is the root container wrapping the list returned by [HudElement.buildContent] and is
-         * automatically created by the framework — you typically don't need to call this directly.
+         * automatically created by the framework - you typically don't need to call this directly.
          */
         fun vertical(children: List<HudRenderable>, spacing: Int = 2): HudRenderable =
             VerticalContainer(children, spacing)
@@ -137,18 +139,18 @@ sealed interface HudRenderable {
         /**
          * A custom-drawn element with explicit pixel dimensions.
          *
-         * The [draw] lambda receives the already-translated [DrawContext] and the element's
+         * The [draw] lambda receives the already-translated [GuiGraphicsExtractor] and the element's
          * local top-left corner coordinates. Use this for progress bars, colored indicators,
          * and anything the standard types can't express.
          *
          * ```kotlin
-         * HudRenderable.custom(80, 6) { ctx, lx, ly ->
-         *     ctx.fill(lx, ly, lx + 80, ly + 6, 0xFF333333.toInt())        // background
-         *     ctx.fill(lx, ly, lx + (80 * fraction).toInt(), ly + 6, 0xFF55FF55.toInt()) // fill
+         * HudRenderable.custom(80, 6) { state, lx, ly ->
+         *     state.fill(lx, ly, lx + 80, ly + 6, 0xFF333333.toInt())        // background
+         *     state.fill(lx, ly, lx + (80 * fraction).toInt(), ly + 6, 0xFF55FF55.toInt()) // fill
          * }
          * ```
          */
-        fun custom(width: Int, height: Int, draw: (DrawContext, lx: Int, ly: Int) -> Unit): HudRenderable =
+        fun custom(width: Int, height: Int, draw: (GuiGraphicsExtractor, lx: Int, ly: Int) -> Unit): HudRenderable =
             CustomRenderable(width, height, draw)
     }
 }
@@ -157,18 +159,18 @@ sealed interface HudRenderable {
 // Concrete implementations
 // ---------------------------------------------------------------------------
 
-private val tr get() = MinecraftClient.getInstance().textRenderer
+private val tr get() = Minecraft.getInstance().font
 
 private class TextLine(
     private val text: String,
     private val color: Int,
     private val shadow: Boolean,
 ) : HudRenderable {
-    override val width  get() = tr.getWidth(text)
-    override val height get() = tr.fontHeight
+    override val width  get() = tr.width(text)
+    override val height get() = tr.lineHeight
 
-    override fun render(ctx: DrawContext, localMx: Int, localMy: Int, lx: Int, ly: Int) {
-        ctx.drawText(tr, text, lx, ly, color, shadow)
+    override fun render(state: GuiGraphicsExtractor, localMx: Int, localMy: Int, lx: Int, ly: Int) {
+        state.text(tr, text, lx, ly, color, shadow)
     }
 }
 
@@ -178,15 +180,15 @@ private open class HoverableLine(
     val shadow: Boolean,
     val tooltip: List<String>,
 ) : HudRenderable {
-    override val width  get() = tr.getWidth(text)
-    override val height get() = tr.fontHeight
+    override val width  get() = tr.width(text)
+    override val height get() = tr.lineHeight
 
     protected fun isHovered(localMx: Int, localMy: Int, lx: Int, ly: Int) =
         localMx in lx until lx + width && localMy in ly until ly + height
 
-    override fun render(ctx: DrawContext, localMx: Int, localMy: Int, lx: Int, ly: Int) {
+    override fun render(state: GuiGraphicsExtractor, localMx: Int, localMy: Int, lx: Int, ly: Int) {
         if (tooltip.isNotEmpty() && isHovered(localMx, localMy, lx, ly)) PendingTooltip.set(tooltip)
-        ctx.drawText(tr, text, lx, ly, color, shadow)
+        state.text(tr, text, lx, ly, color, shadow)
     }
 }
 
@@ -198,10 +200,10 @@ private class ClickableLine(
     private val onClick: (Int) -> Unit,
 ) : HoverableLine(text, color, shadow, tooltip) {
 
-    override fun render(ctx: DrawContext, localMx: Int, localMy: Int, lx: Int, ly: Int) {
-        super.render(ctx, localMx, localMy, lx, ly)
+    override fun render(state: GuiGraphicsExtractor, localMx: Int, localMy: Int, lx: Int, ly: Int) {
+        super.render(state, localMx, localMy, lx, ly)
         if (isHovered(localMx, localMy, lx, ly)) {
-            ctx.fill(lx, ly + height, lx + width, ly + height + 1, color or (0xFF shl 24))
+            state.fill(lx, ly + height, lx + width, ly + height + 1, color or (0xFF shl 24))
         }
     }
 
@@ -219,8 +221,8 @@ private class SelectorLine(
     private val onChange: (String) -> Unit,
 ) : HudRenderable {
     private fun displayText() = "§7$label §a[§e${current()}§a]"
-    override val width  get() = tr.getWidth(displayText())
-    override val height get() = tr.fontHeight
+    override val width  get() = tr.width(displayText())
+    override val height get() = tr.lineHeight
 
     private fun isHovered(localMx: Int, localMy: Int, lx: Int, ly: Int) =
         localMx in lx until lx + width && localMy in ly until ly + height
@@ -233,9 +235,9 @@ private class SelectorLine(
         }
     }
 
-    override fun render(ctx: DrawContext, localMx: Int, localMy: Int, lx: Int, ly: Int) {
+    override fun render(state: GuiGraphicsExtractor, localMx: Int, localMy: Int, lx: Int, ly: Int) {
         if (isHovered(localMx, localMy, lx, ly)) PendingTooltip.set(buildTooltip())
-        ctx.drawText(tr, displayText(), lx, ly, 0xFFFFFF, true)
+        state.text(tr, displayText(), lx, ly, 0xFFFFFFFF.toInt(), true)
     }
 
     override fun mouseClicked(localMx: Int, localMy: Int, button: Int, lx: Int, ly: Int): Boolean {
@@ -259,10 +261,10 @@ private class VerticalContainer(
     override val height get() = if (children.isEmpty()) 0
         else children.sumOf { it.height } + spacing * (children.size - 1)
 
-    override fun render(ctx: DrawContext, localMx: Int, localMy: Int, lx: Int, ly: Int) {
+    override fun render(state: GuiGraphicsExtractor, localMx: Int, localMy: Int, lx: Int, ly: Int) {
         var y = ly
         for (child in children) {
-            child.render(ctx, localMx, localMy, lx, y)
+            child.render(state, localMx, localMy, lx, y)
             y += child.height + spacing
         }
     }
@@ -285,10 +287,10 @@ private class HorizontalContainer(
         else children.sumOf { it.width } + spacing * (children.size - 1)
     override val height get() = children.maxOfOrNull { it.height } ?: 0
 
-    override fun render(ctx: DrawContext, localMx: Int, localMy: Int, lx: Int, ly: Int) {
+    override fun render(state: GuiGraphicsExtractor, localMx: Int, localMy: Int, lx: Int, ly: Int) {
         var x = lx
         for (child in children) {
-            child.render(ctx, localMx, localMy, x, ly)
+            child.render(state, localMx, localMy, x, ly)
             x += child.width + spacing
         }
     }
@@ -305,21 +307,21 @@ private class HorizontalContainer(
 
 private class Spacer(override val height: Int) : HudRenderable {
     override val width = 0
-    override fun render(ctx: DrawContext, localMx: Int, localMy: Int, lx: Int, ly: Int) = Unit
+    override fun render(state: GuiGraphicsExtractor, localMx: Int, localMy: Int, lx: Int, ly: Int) = Unit
 }
 
 private class CustomRenderable(
     override val width: Int,
     override val height: Int,
-    private val draw: (DrawContext, Int, Int) -> Unit,
+    private val draw: (GuiGraphicsExtractor, Int, Int) -> Unit,
 ) : HudRenderable {
-    override fun render(ctx: DrawContext, localMx: Int, localMy: Int, lx: Int, ly: Int) {
-        draw(ctx, lx, ly)
+    override fun render(state: GuiGraphicsExtractor, localMx: Int, localMy: Int, lx: Int, ly: Int) {
+        draw(state, lx, ly)
     }
 }
 
 // ---------------------------------------------------------------------------
-// Tooltip singleton — rendered after all elements by HudManager
+// Tooltip singleton - rendered after all elements by HudManager
 // ---------------------------------------------------------------------------
 
 /**
@@ -335,14 +337,14 @@ internal object PendingTooltip {
     fun set(tooltip: List<String>) { lines = tooltip }
     fun clear() { lines = null }
 
-    fun renderLast(ctx: DrawContext, screenMx: Int, screenMy: Int, screenW: Int) {
+    fun renderLast(state: GuiGraphicsExtractor, screenMx: Int, screenMy: Int, screenW: Int) {
         val l = lines ?: return
         lines = null
-        val tr = MinecraftClient.getInstance().textRenderer
-        val lineH = tr.fontHeight + 1
+        val tr = Minecraft.getInstance().font
+        val lineH = tr.lineHeight + 1
         val pad = 4
         val totalH = l.size * lineH - 1
-        val totalW = l.maxOfOrNull { tr.getWidth(it) } ?: return
+        val totalW = l.maxOfOrNull { tr.width(it) } ?: return
         val bw = totalW + pad * 2
         val bh = totalH + pad * 2
         var tx = screenMx + 12
@@ -350,10 +352,10 @@ internal object PendingTooltip {
         if (ty < 2) ty = screenMy + 14
         if (tx + bw > screenW - 2) tx = screenW - bw - 2
         if (tx < 2) tx = 2
-        ctx.fill(tx - 1, ty - 1, tx + bw + 1, ty + bh + 1, 0xFF555555.toInt())
-        ctx.fill(tx, ty, tx + bw, ty + bh, 0xEE000000.toInt())
+        state.fill(tx - 1, ty - 1, tx + bw + 1, ty + bh + 1, 0xFF555555.toInt())
+        state.fill(tx, ty, tx + bw, ty + bh, 0xEE000000.toInt())
         l.forEachIndexed { i, line ->
-            ctx.drawText(tr, line, tx + pad, ty + pad + i * lineH, 0xFFFFFF, true)
+            state.text(tr, line, tx + pad, ty + pad + i * lineH, 0xFFFFFFFF.toInt(), true)
         }
     }
 }

@@ -6,9 +6,9 @@ import com.github.mikecraft1224.simplecore.bus.EventRegistry
 import com.github.mikecraft1224.simplecore.bus.api.Event
 import com.github.mikecraft1224.simplecore.bus.api.EventCompanion
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.minecraft.client.world.ClientWorld
+import net.minecraft.client.multiplayer.ClientLevel
 
-class WorldTickEvent(val world: ClientWorld, val tickCount: Int, val phase: Phase) : Event() {
+class WorldTickEvent(val world: ClientLevel, val tickCount: Int, val phase: Phase) : Event() {
     enum class Phase {
         START,
         END
@@ -22,11 +22,11 @@ class WorldTickEvent(val world: ClientWorld, val tickCount: Int, val phase: Phas
         override fun registerEvents() {
             if (registered) return
 
-            ClientTickEvents.START_WORLD_TICK.register { world ->
+            ClientTickEvents.START_LEVEL_TICK.register { world ->
                 totalStartTicks++
                 EventRegistry.post { WorldTickEvent(world, totalStartTicks, Phase.START) }
             }
-            ClientTickEvents.END_WORLD_TICK.register { world ->
+            ClientTickEvents.END_LEVEL_TICK.register { world ->
                 totalEndTicks++
                 EventRegistry.post { WorldTickEvent(world, totalEndTicks, Phase.END) }
             }

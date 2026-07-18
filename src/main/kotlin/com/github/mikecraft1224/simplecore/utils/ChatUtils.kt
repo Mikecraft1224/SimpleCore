@@ -2,18 +2,17 @@
 
 package com.github.mikecraft1224.simplecore.utils
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.text.ClickEvent
-import net.minecraft.text.HoverEvent
-import net.minecraft.text.Text
+import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.HoverEvent
 
 object ChatUtils {
     /** Shows [message] in the local chat HUD. Not sent to the server. */
-    fun print(message: String) = print(Text.literal(message))
+    fun print(message: String) = print(Component.literal(message))
 
     /** Shows [text] in the local chat HUD. Not sent to the server. */
-    fun print(text: Text) {
-        MinecraftClient.getInstance().inGameHud?.chatHud?.addMessage(text)
+    fun print(text: Component) {
+        McUtils.player?.sendSystemMessage(text)
     }
 
     /**
@@ -22,26 +21,26 @@ object ChatUtils {
      */
     fun send(message: String) {
         val player = McUtils.player ?: return
-        player.networkHandler.sendChatMessage(message)
+        player.connection.sendChat(message)
     }
 
     /**
-     * Returns a [Text] component that runs [command] on click and optionally shows
+     * Returns a [Component] that runs [command] on click and optionally shows
      * [hover] as a tooltip.
      */
-    fun clickable(text: String, command: String, hover: String? = null): Text =
-        Text.literal(text).styled { style ->
+    fun clickable(text: String, command: String, hover: String? = null): Component =
+        Component.literal(text).withStyle { style ->
             var s = style.withClickEvent(ClickEvent.RunCommand(command))
-            if (hover != null) s = s.withHoverEvent(HoverEvent.ShowText(Text.literal(hover)))
+            if (hover != null) s = s.withHoverEvent(HoverEvent.ShowText(Component.literal(hover)))
             s
         }
 
     /**
-     * Returns a [Text] component with a multi-line hover tooltip. Lines are joined
+     * Returns a [Component] with a multi-line hover tooltip. Lines are joined
      * with newlines.
      */
-    fun hoverable(text: String, hover: List<String>): Text =
-        Text.literal(text).styled { style ->
-            style.withHoverEvent(HoverEvent.ShowText(Text.literal(hover.joinToString("\n"))))
+    fun hoverable(text: String, hover: List<String>): Component =
+        Component.literal(text).withStyle { style ->
+            style.withHoverEvent(HoverEvent.ShowText(Component.literal(hover.joinToString("\n"))))
         }
 }

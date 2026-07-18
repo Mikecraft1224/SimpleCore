@@ -25,20 +25,16 @@ import com.github.mikecraft1224.simplecore.config.screen.overlays.DropdownOverla
 import com.github.mikecraft1224.simplecore.config.screen.overlays.ListOverlay
 import com.github.mikecraft1224.simplecore.config.screen.overlays.MultiSelectOverlay
 import com.github.mikecraft1224.simplecore.config.screen.overlays.ObjectListOverlay
-import com.github.mikecraft1224.simplecore.ui.ScTextField
-import com.github.mikecraft1224.simplecore.ui.UiScreen
-import com.github.mikecraft1224.simplecore.ui.Panel
-import com.github.mikecraft1224.simplecore.ui.layout.FrameLayout
 import com.github.mikecraft1224.simplecore.utils.Color as SimpleColor
-import net.minecraft.client.gui.Click
-import net.minecraft.client.gui.DrawContext
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.gui.widget.TextFieldWidget
-import net.minecraft.client.input.CharInput
-import net.minecraft.client.input.KeyInput
+import com.mojang.blaze3d.platform.InputConstants
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.components.EditBox
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
+import net.minecraft.client.input.MouseButtonEvent
 import com.github.mikecraft1224.simplecore.input.api.Modifiers
-import net.minecraft.client.util.InputUtil
-import net.minecraft.text.Text
+import net.minecraft.network.chat.Component
 import org.lwjgl.glfw.GLFW
 import java.util.IdentityHashMap
 import kotlin.math.max
@@ -49,7 +45,7 @@ import kotlin.math.round
  *
  * Left: category list. Top-right: title bar + search. Right: scrollable entry rows.
  *
- * Overlay management is handled by [OverlayStack] — all overlays (dropdown, color picker,
+ * Overlay management is handled by [OverlayStack] - all overlays (dropdown, color picker,
  * list editors) are pushed as [OverlayLayer] instances onto the stack and receive events
  * through [ConfigOverlay] callbacks. See [OverlayStack], [ConfigLayout], and the overlay
  * classes in `overlays/` for implementation details.
@@ -60,7 +56,7 @@ class ConfigScreen(
     private val model: ProcessedConfig,
     private val manager: ConfigManager<*>,
     title: String = "Config",
-) : UiScreen(Text.literal("Config")) {
+) : Screen(Component.literal("Config")) {
 
     private val displayTitle    = model.title.ifEmpty { title }
     private val displaySubtitle = model.subtitle
@@ -88,7 +84,7 @@ class ConfigScreen(
     private var selSubCat        = -1
     private var scroll           = 0
     private var searchText       = ""
-    private var searchField: TextFieldWidget? = null
+    private var searchField: EditBox? = null
     private var capturingKeybind: ProcessedEntry.KeybindEntry? = null
     private var draggingSlider:   ProcessedEntry.SliderEntry?  = null
     private var sliderDragTrackX: Int = 0
@@ -98,23 +94,23 @@ class ConfigScreen(
     /** Single overlay stack replacing all individual overlay fields. */
     private val overlayStack = OverlayStack()
 
-    /** ScTextField instances for TextEntry and SliderEntry rows — keyed by entry identity. */
+    /** ScTextField instances for TextEntry and SliderEntry rows - keyed by entry identity. */
     private val scTextFields = IdentityHashMap<ProcessedEntry, ScTextField>()
 
     private val anyOverlayOpen get() = overlayStack.isOpen
 
-    /** Context object passed to overlay classes. Initialised lazily so [textRenderer] is ready. */
+    /** Context object passed to overlay classes. Initialised lazily so [font] is ready. */
     private val ctx: ConfigScreenCtx by lazy {
         ConfigScreenCtx(
-            tr              = textRenderer,
+            tr              = font,
             getW            = { width },
             getH            = { height },
             scFields        = scTextFields,
             accentColor     = { accentColor },
             startSliderDrag = { e, mx, trackX, trackW -> startSliderDragImpl(e, mx, trackX, trackW) },
             captureKeybind  = { e -> capturingKeybind = e },
-            drawWidget      = { drawCtx, entry, x, y, w, h, mx, my ->
-                drawEntryWidget(drawCtx, entry, x, y, w, h, mx, my)
+            drawWidget      = { drawState, entry, x, y, w, h, mx, my ->
+                drawEntryWidget(drawState, entry, x, y, w, h, mx, my)
             },
         )
     }
@@ -252,9 +248,7 @@ class ConfigScreen(
         if (rows != oldRows) syncWidgets()
     }
 
-    // -- UiScreen implementation ----------------------------------------------
-
-    override fun buildRoot(): Panel = FrameLayout()
+    // -- Screen lifecycle -------------------------------------------------------
 
     override fun init() {
         overlayStack.clear()
@@ -262,17 +256,17 @@ class ConfigScreen(
 
         if (model.searchEnabled) {
             if (searchField == null) {
-                searchField = TextFieldWidget(
-                    textRenderer, entryLeft + 6, headerH + 4, entryW - 12, 18, Text.empty(),
+                searchField = EditBox(
+                    font, entryLeft + 6, headerH + 4, entryW - 12, 18, Component.empty(),
                 ).also {
-                    it.setChangedListener { v -> searchText = v; rebuildRows(); syncWidgets() }
+                    it.setResponder { v -> searchText = v; rebuildRows(); syncWidgets() }
                 }
             } else {
                 searchField!!.apply {
                     x = entryLeft + 6; y = headerH + 4; width = entryW - 12
                 }
             }
-            searchField?.let { addDrawableChild(it) }
+            searchField?.let { addRenderableWidget(it) }
         }
 
         if (model.autoFocusSearch && model.searchEnabled) {
@@ -289,9 +283,9 @@ class ConfigScreen(
 
     // -- Rendering ------------------------------------------------------------
 
-    override fun renderBackground(context: DrawContext, mouseX: Int, mouseY: Int, delta: Float) {
+    override fun extractBackground(context: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, delta: Float) {
         rebuildRowsLive()
-        super.renderBackground(context, mouseX, mouseY, delta)
+        super.extractBackground(context, mouseX, mouseY, delta)
 
         // Panel fills
         context.fill(0, 0, CAT_W, height, C_MANTLE)
@@ -301,10 +295,10 @@ class ConfigScreen(
         context.fill(0, 0, width, headerH, C_MANTLE)
         context.fill(0, headerH - 1, width, headerH, C_SURFACE0)
         if (displaySubtitle.isEmpty()) {
-            context.drawCenteredTextWithShadow(textRenderer, displayTitle, width / 2, (headerH - textRenderer.fontHeight) / 2, C_TEXT)
+            context.centeredText(font, displayTitle, width / 2, (headerH - font.lineHeight) / 2, C_TEXT)
         } else {
-            context.drawCenteredTextWithShadow(textRenderer, displayTitle,    width / 2, 7,  C_TEXT)
-            context.drawCenteredTextWithShadow(textRenderer, displaySubtitle, width / 2, 20, C_OVERLAY0)
+            context.centeredText(font, displayTitle,    width / 2, 7,  C_TEXT)
+            context.centeredText(font, displaySubtitle, width / 2, 20, C_OVERLAY0)
         }
 
         // Dividers
@@ -314,7 +308,7 @@ class ConfigScreen(
 
         // Search placeholder
         if (model.searchEnabled && searchText.isEmpty()) {
-            context.drawText(textRenderer, "Search...", entryLeft + 8, headerH + 8, C_OVERLAY0, false)
+            context.text(font, "Search...", entryLeft + 8, headerH + 8, C_OVERLAY0, false)
         }
 
         // Category sidebar
@@ -339,7 +333,7 @@ class ConfigScreen(
             }
             val indentX = if (isParent) 10 else 18
             val prefix  = if (!isParent) "• " else ""
-            context.drawText(textRenderer, "$prefix${item.name}", indentX, item.y + (item.h - textRenderer.fontHeight) / 2, col, false)
+            context.text(font, "$prefix${item.name}", indentX, item.y + (item.h - font.lineHeight) / 2, col, false)
         }
 
         // Entry rows (scissored)
@@ -361,19 +355,19 @@ class ConfigScreen(
                     if (label.isEmpty()) {
                         context.fill(entryLeft + 8, ly, entryRight - 8, ly + 1, 0x44CDD6F4)
                     } else {
-                        val lw    = textRenderer.getWidth(label)
+                        val lw    = font.width(label)
                         val cx    = (entryLeft + entryRight) / 2
                         val gap   = 6
                         context.fill(entryLeft + 8,    ly, cx - lw / 2 - gap, ly + 1, 0x44CDD6F4)
                         context.fill(cx + lw / 2 + gap, ly, entryRight - 8,    ly + 1, 0x44CDD6F4)
-                        context.drawCenteredTextWithShadow(textRenderer, label, cx, ly - textRenderer.fontHeight / 2, C_OVERLAY0)
+                        context.centeredText(font, label, cx, ly - font.lineHeight / 2, C_OVERLAY0)
                     }
                 }
                 is Row.SearchHeader -> {
                     context.fill(entryLeft, ry, entryRight, ry + ROW_H, 0x22FFFFFF)
-                    context.drawText(
-                        textRenderer, row.name.uppercase(),
-                        entryLeft + 8, ry + (ROW_H - textRenderer.fontHeight) / 2,
+                    context.text(
+                        font, row.name.uppercase(),
+                        entryLeft + 8, ry + (ROW_H - font.lineHeight) / 2,
                         accentColor, false,
                     )
                 }
@@ -387,9 +381,9 @@ class ConfigScreen(
                     val barColor = if (row.indent == 0) accentColor else C_OVERLAY0
                     context.fill(entryLeft + indentX, ry + 1, entryLeft + indentX + 3, ry + ROW_H - 1, barColor)
                     val tx  = entryLeft + indentX + 8
-                    val ty  = ry + (ROW_H - textRenderer.fontHeight) / 2
+                    val ty  = ry + (ROW_H - font.lineHeight) / 2
                     val arrow = if (row.group.collapsed) "+" else "-"
-                    context.drawText(textRenderer, "$arrow  ${row.group.name}", tx, ty, C_TEXT, true)
+                    context.text(font, "$arrow  ${row.group.name}", tx, ty, C_TEXT, true)
                     if (!row.group.collapsed)
                         context.fill(entryLeft + indentX + 3, ry + ROW_H - 1, entryRight - 4, ry + ROW_H, 0x33FFFFFF)
                     if (row.group.description.isNotEmpty() && hov)
@@ -398,16 +392,16 @@ class ConfigScreen(
                 is Row.EntryRow -> {
                     val e  = row.entry
                     val tx = entryLeft + 8 + row.indent * 10
-                    val ty = ry + (ROW_H - textRenderer.fontHeight) / 2
+                    val ty = ry + (ROW_H - font.lineHeight) / 2
                     for (level in 0 until row.indent) {
                         val gx = entryLeft + level * 10 + 1
                         context.fill(gx, ry, gx + 1, ry + ROW_H, 0x22FFFFFF)
                     }
                     if (e is ProcessedEntry.InfoEntry) {
-                        context.drawText(textRenderer, e.name, tx, ty, C_SUBTEXT, false)
-                        context.drawText(textRenderer, e.getText(), widgetX(), ty, accentColor, false)
+                        context.text(font, e.name, tx, ty, C_SUBTEXT, false)
+                        context.text(font, e.getText(), widgetX(), ty, accentColor, false)
                     } else {
-                        context.drawText(textRenderer, e.name, tx, ty, C_TEXT, false)
+                        context.text(font, e.name, tx, ty, C_TEXT, false)
                         if (e.description.isNotEmpty() && hov)
                             pendingTooltip = e.description to (mouseX to mouseY)
                         val effMx = if (anyOverlayOpen) -1 else mouseX
@@ -429,57 +423,57 @@ class ConfigScreen(
         context.disableScissor()
 
         // When any overlay is open, render the search field manually here so it appears behind the
-        // dim layer drawn by the overlay. The drawable-child pass is suppressed in render() below.
+        // dim layer drawn by the overlay. The drawable-child pass is suppressed in extractRenderState below.
         if (anyOverlayOpen && model.searchEnabled) {
-            searchField?.render(context, mouseX, mouseY, delta)
+            searchField?.extractRenderState(context, mouseX, mouseY, delta)
         }
     }
 
-    override fun render(ctx: DrawContext, mx: Int, my: Int, delta: Float) {
+    override fun extractRenderState(state: GuiGraphicsExtractor, mx: Int, my: Int, delta: Float) {
         // Suppress the drawable-child pass of searchField when overlays are open so it doesn't
-        // double-draw on top of the dim (it was already drawn in renderBackground above).
+        // double-draw on top of the dim (it was already drawn in extractBackground above).
         if (anyOverlayOpen) searchField?.visible = false
-        super.render(ctx, mx, my, delta)
+        super.extractRenderState(state, mx, my, delta)
         if (anyOverlayOpen) searchField?.visible = true
 
         // Scrollbar
         if (maxScroll > 0) {
             val thumbH = (visH * visH.toFloat() / (rows.size * ROW_H)).toInt().coerceAtLeast(16)
             val thumbY = entryTop + ((scroll.toFloat() / maxScroll) * (visH - thumbH)).toInt()
-            ctx.fill(entryRight - 3, entryTop,  entryRight, entryBottom, 0x22FFFFFF)
-            ctx.fill(entryRight - 3, thumbY, entryRight, thumbY + thumbH, 0xAABAC2DE.toInt())
+            state.fill(entryRight - 3, entryTop,  entryRight, entryBottom, 0x22FFFFFF)
+            state.fill(entryRight - 3, thumbY, entryRight, thumbY + thumbH, 0xAABAC2DE.toInt())
         }
 
-        // Done button — disabled while any overlay is open
+        // Done button - disabled while any overlay is open
         val bw = 80; val bh = 20
         val bx = width / 2 - bw / 2
         val by = height - BOT_H + (BOT_H - bh) / 2
         val doneHov = !anyOverlayOpen && mx in bx until bx + bw && my in by until by + bh
-        ctx.fill(bx, by, bx + bw, by + bh, if (doneHov) C_SURFACE1 else C_SURFACE0)
-        ctx.drawCenteredTextWithShadow(textRenderer, "Done", bx + bw / 2, by + (bh - textRenderer.fontHeight) / 2,
+        state.fill(bx, by, bx + bw, by + bh, if (doneHov) C_SURFACE1 else C_SURFACE0)
+        state.centeredText(font, "Done", bx + bw / 2, by + (bh - font.lineHeight) / 2,
             if (anyOverlayOpen) C_OVERLAY0 else C_TEXT)
 
         // Tooltip (suppressed when any overlay is open)
         if (!anyOverlayOpen)
-            pendingTooltip?.let { (msg, pos) -> ctx.drawTooltip(Text.literal(msg), pos.first, pos.second) }
+            pendingTooltip?.let { (msg, pos) -> state.setTooltipForNextFrame(Component.literal(msg), pos.first, pos.second) }
 
-        // Overlays — rendered last, on top of everything
-        overlayStack.render(ctx, mx, my)
+        // Overlays - rendered last, on top of everything
+        overlayStack.render(state, mx, my)
     }
 
     // -- Widget drawing -------------------------------------------------------
 
-    private fun drawEntryWidget(ctx: DrawContext, entry: ProcessedEntry, x: Int, y: Int, w: Int, h: Int, mx: Int, my: Int) {
+    private fun drawEntryWidget(state: GuiGraphicsExtractor, entry: ProcessedEntry, x: Int, y: Int, w: Int, h: Int, mx: Int, my: Int) {
         val hov = mx in x until x + w && my in y until y + h
         when (entry) {
-            is ProcessedEntry.BoolEntry        -> drawToggle(ctx, entry.get(), x, y, w, h, hov)
-            is ProcessedEntry.SliderEntry      -> drawSlider(ctx, entry, x, y, w, h, hov, mx, my)
-            is ProcessedEntry.DropdownEntry    -> drawDropdown(ctx, entry, x, y, w, h, hov)
-            is ProcessedEntry.ButtonEntry      -> drawBox(ctx, entry.buttonText, x, y, w, h, hov)
-            is ProcessedEntry.ColorEntry       -> drawColorSwatch(ctx, SimpleColor.fromAwtColor(entry.get()), x, y, w, h, hov)
-            is ProcessedEntry.KeybindEntry     -> drawKeybind(ctx, entry, x, y, w, h, hov, mx)
-            is ProcessedEntry.MutableListEntry  -> drawBox(ctx, "Edit (${entry.getList().size} items)", x, y, w, h, hov)
-            is ProcessedEntry.ObjectListEntry   -> drawBox(ctx, "Edit (${entry.getList().size} items)", x, y, w, h, hov)
+            is ProcessedEntry.BoolEntry        -> drawToggle(state, entry.get(), x, y, w, h, hov)
+            is ProcessedEntry.SliderEntry      -> drawSlider(state, entry, x, y, w, h, hov, mx, my)
+            is ProcessedEntry.DropdownEntry    -> drawDropdown(state, entry, x, y, w, h, hov)
+            is ProcessedEntry.ButtonEntry      -> drawBox(state, entry.buttonText, x, y, w, h, hov)
+            is ProcessedEntry.ColorEntry       -> drawColorSwatch(state, SimpleColor.fromAwtColor(entry.get()), x, y, w, h, hov)
+            is ProcessedEntry.KeybindEntry     -> drawKeybind(state, entry, x, y, w, h, hov, mx)
+            is ProcessedEntry.MutableListEntry  -> drawBox(state, "Edit (${entry.getList().size} items)", x, y, w, h, hov)
+            is ProcessedEntry.ObjectListEntry   -> drawBox(state, "Edit (${entry.getList().size} items)", x, y, w, h, hov)
             is ProcessedEntry.MultiSelectEntry  -> {
                 val sel = entry.getSelected()
                 val label = when (sel.size) {
@@ -487,13 +481,13 @@ class ConfigScreen(
                     1    -> sel[0]
                     else -> "${sel.size} selected"
                 }
-                drawBox(ctx, label, x, y, w, h, hov)
+                drawBox(state, label, x, y, w, h, hov)
             }
             else -> {}
         }
     }
 
-    private fun drawToggle(ctx: DrawContext, on: Boolean, x: Int, y: Int, w: Int, h: Int, hov: Boolean) {
+    private fun drawToggle(state: GuiGraphicsExtractor, on: Boolean, x: Int, y: Int, w: Int, h: Int, hov: Boolean) {
         val trackW = 34; val trackH = 14; val knobSz = 10; val pad = 2
         val tx = x + w - trackW; val ty = y + (h - trackH) / 2
         val trackBg = when {
@@ -502,27 +496,27 @@ class ConfigScreen(
             hov        -> C_SURFACE1
             else       -> C_SURFACE0
         }
-        ctx.fill(tx + 2, ty,               tx + trackW - 2, ty + 2,              trackBg)
-        ctx.fill(tx,     ty + 2,           tx + trackW,     ty + trackH - 2,     trackBg)
-        ctx.fill(tx + 2, ty + trackH - 2,  tx + trackW - 2, ty + trackH,         trackBg)
+        state.fill(tx + 2, ty,               tx + trackW - 2, ty + 2,              trackBg)
+        state.fill(tx,     ty + 2,           tx + trackW,     ty + trackH - 2,     trackBg)
+        state.fill(tx + 2, ty + trackH - 2,  tx + trackW - 2, ty + trackH,         trackBg)
         val knobX = if (on) tx + trackW - knobSz - pad else tx + pad
         val knobY = ty + (trackH - knobSz) / 2
-        ctx.fill(knobX,              knobY,               knobX + knobSz, knobY + knobSz, C_TEXT)
-        ctx.fill(knobX,              knobY,               knobX + 1,      knobY + 1,      trackBg)
-        ctx.fill(knobX + knobSz - 1, knobY,               knobX + knobSz, knobY + 1,      trackBg)
-        ctx.fill(knobX,              knobY + knobSz - 1,  knobX + 1,      knobY + knobSz, trackBg)
-        ctx.fill(knobX + knobSz - 1, knobY + knobSz - 1,  knobX + knobSz, knobY + knobSz, trackBg)
+        state.fill(knobX,              knobY,               knobX + knobSz, knobY + knobSz, C_TEXT)
+        state.fill(knobX,              knobY,               knobX + 1,      knobY + 1,      trackBg)
+        state.fill(knobX + knobSz - 1, knobY,               knobX + knobSz, knobY + 1,      trackBg)
+        state.fill(knobX,              knobY + knobSz - 1,  knobX + 1,      knobY + knobSz, trackBg)
+        state.fill(knobX + knobSz - 1, knobY + knobSz - 1,  knobX + knobSz, knobY + knobSz, trackBg)
     }
 
-    private fun drawSlider(ctx: DrawContext, e: ProcessedEntry.SliderEntry, x: Int, y: Int, w: Int, h: Int, hov: Boolean, mx: Int = -1, my: Int = -1) {
+    private fun drawSlider(state: GuiGraphicsExtractor, e: ProcessedEntry.SliderEntry, x: Int, y: Int, w: Int, h: Int, hov: Boolean, mx: Int = -1, my: Int = -1) {
         val sliderW = w - SLIDER_INP - 4
         val ratio   = ((e.get() - e.min) / (e.max - e.min)).coerceIn(0.0, 1.0)
         val fillW   = (sliderW * ratio).toInt()
         val midY    = y + h / 2
-        ctx.fill(x, midY - 2, x + sliderW, midY + 2, C_SURFACE0)
-        ctx.fill(x, midY - 2, x + fillW,   midY + 2, accentColor)
+        state.fill(x, midY - 2, x + sliderW, midY + 2, C_SURFACE0)
+        state.fill(x, midY - 2, x + fillW,   midY + 2, accentColor)
         val tx = x + fillW
-        ctx.fill(tx - 3, y + 2, tx + 3, y + h - 2, if (hov || draggingSlider === e) C_TEXT else C_SUBTEXT)
+        state.fill(tx - 3, y + 2, tx + 3, y + h - 2, if (hov || draggingSlider === e) C_TEXT else C_SUBTEXT)
 
         val inpX = x + w - SLIDER_INP
         val dec  = if (e.step >= 1.0) 0 else e.step.toString().substringAfter('.').trimEnd('0').length
@@ -539,55 +533,55 @@ class ConfigScreen(
         }.apply { this.x = inpX; this.y = y + 1 }
         if (!tf.focused) tf.setText("%.${dec}f".format(e.get()))
         if (mx < 0) tf.focused = false
-        tf.render(ctx, mx, my)
+        tf.render(state, mx, my)
     }
 
-    private fun drawDropdown(ctx: DrawContext, e: ProcessedEntry.DropdownEntry, x: Int, y: Int, w: Int, h: Int, hov: Boolean) {
+    private fun drawDropdown(state: GuiGraphicsExtractor, e: ProcessedEntry.DropdownEntry, x: Int, y: Int, w: Int, h: Int, hov: Boolean) {
         val isOpen = overlayStack.topLayer?.overlays
             ?.filterIsInstance<DropdownOverlay>()
             ?.any { it.entry === e } == true
-        ctx.fill(x, y, x + w, y + h, if (isOpen || hov) C_SURFACE1 else C_SURFACE0)
+        state.fill(x, y, x + w, y + h, if (isOpen || hov) C_SURFACE1 else C_SURFACE0)
         val opts  = e.options()
         val label = opts.getOrElse(e.get().coerceIn(0, opts.lastIndex)) { "?" }
-        val lw    = textRenderer.getWidth(label)
-        val ty    = y + (h - textRenderer.fontHeight) / 2
-        ctx.drawText(textRenderer, label, x + (w - lw) / 2, ty, C_TEXT, false)
+        val lw    = font.width(label)
+        val ty    = y + (h - font.lineHeight) / 2
+        state.text(font, label, x + (w - lw) / 2, ty, C_TEXT, false)
         val arrow = if (isOpen) "▲" else "▼"
-        ctx.drawText(textRenderer, arrow, x + w - textRenderer.getWidth(arrow) - 4, ty, C_OVERLAY0, false)
+        state.text(font, arrow, x + w - font.width(arrow) - 4, ty, C_OVERLAY0, false)
     }
 
-    private fun drawBox(ctx: DrawContext, label: String, x: Int, y: Int, w: Int, h: Int, hov: Boolean) {
-        ctx.fill(x, y, x + w, y + h, if (hov) C_SURFACE1 else C_SURFACE0)
-        val lw = textRenderer.getWidth(label)
-        ctx.drawText(textRenderer, label, x + (w - lw) / 2, y + (h - textRenderer.fontHeight) / 2, C_TEXT, false)
+    private fun drawBox(state: GuiGraphicsExtractor, label: String, x: Int, y: Int, w: Int, h: Int, hov: Boolean) {
+        state.fill(x, y, x + w, y + h, if (hov) C_SURFACE1 else C_SURFACE0)
+        val lw = font.width(label)
+        state.text(font, label, x + (w - lw) / 2, y + (h - font.lineHeight) / 2, C_TEXT, false)
     }
 
-    private fun drawColorSwatch(ctx: DrawContext, color: SimpleColor, x: Int, y: Int, w: Int, h: Int, hov: Boolean) {
+    private fun drawColorSwatch(state: GuiGraphicsExtractor, color: SimpleColor, x: Int, y: Int, w: Int, h: Int, hov: Boolean) {
         val argb = color.argb
-        ctx.fill(x, y + 1, x + w, y + h - 1, 0xFF888888.toInt())
-        ctx.fill(x,         y + 1,     x + w / 2, y + h / 2, 0xFFAAAAAA.toInt())
-        ctx.fill(x + w / 2, y + h / 2, x + w,     y + h - 1, 0xFFAAAAAA.toInt())
-        ctx.fill(x, y + 1, x + w, y + h - 1, argb)
+        state.fill(x, y + 1, x + w, y + h - 1, 0xFF888888.toInt())
+        state.fill(x,         y + 1,     x + w / 2, y + h / 2, 0xFFAAAAAA.toInt())
+        state.fill(x + w / 2, y + h / 2, x + w,     y + h - 1, 0xFFAAAAAA.toInt())
+        state.fill(x, y + 1, x + w, y + h - 1, argb)
         val borderCol = if (hov) C_SUBTEXT else C_SURFACE1
-        ctx.fill(x - 1, y,         x + w + 1, y + 1,     borderCol)
-        ctx.fill(x - 1, y + h,     x + w + 1, y + h + 1, borderCol)
-        ctx.fill(x - 1, y,         x,         y + h + 1, borderCol)
-        ctx.fill(x + w, y,         x + w + 1, y + h + 1, borderCol)
+        state.fill(x - 1, y,         x + w + 1, y + 1,     borderCol)
+        state.fill(x - 1, y + h,     x + w + 1, y + h + 1, borderCol)
+        state.fill(x - 1, y,         x,         y + h + 1, borderCol)
+        state.fill(x + w, y,         x + w + 1, y + h + 1, borderCol)
         if (hov) {
             val hint = "click to edit"
-            val hw   = textRenderer.getWidth(hint)
+            val hw   = font.width(hint)
             if (hw + 4 <= w)
-                ctx.drawText(textRenderer, hint, x + (w - hw) / 2, y + (h - textRenderer.fontHeight) / 2, 0xAAFFFFFF.toInt(), false)
+                state.text(font, hint, x + (w - hw) / 2, y + (h - font.lineHeight) / 2, 0xAAFFFFFF.toInt(), false)
         }
     }
 
-    private fun drawKeybind(ctx: DrawContext, e: ProcessedEntry.KeybindEntry, x: Int, y: Int, w: Int, h: Int, hov: Boolean, mx: Int = -1) {
+    private fun drawKeybind(state: GuiGraphicsExtractor, e: ProcessedEntry.KeybindEntry, x: Int, y: Int, w: Int, h: Int, hov: Boolean, mx: Int = -1) {
         val capturing = capturingKeybind === e
         val canReset  = e.defaultPacked != 0 && e.get() != e.defaultPacked && !capturing
         val resetW    = if (canReset) 16 else 0
         val mainW     = w - resetW
 
-        ctx.fill(x, y, x + mainW, y + h, when { capturing -> C_RED; hov -> C_SURFACE1; else -> C_SURFACE0 })
+        state.fill(x, y, x + mainW, y + h, when { capturing -> C_RED; hov -> C_SURFACE1; else -> C_SURFACE0 })
 
         val label = if (capturing) {
             "Press key or click..."
@@ -596,9 +590,9 @@ class ConfigScreen(
             val keyCode = KeybindPacked.keyCode(packed)
             val mods    = KeybindPacked.modifiers(packed)
             val keyName = if (KeybindPacked.isMouse(packed))
-                InputUtil.Type.MOUSE.createFromCode(keyCode).getLocalizedText().string
+                InputConstants.Type.MOUSE.getOrCreate(keyCode).displayName.string
             else
-                InputUtil.fromKeyCode(KeyInput(keyCode, 0, 0)).getLocalizedText().string
+                InputConstants.Type.KEYSYM.getOrCreate(keyCode).displayName.string
             buildString {
                 if (mods.ctrl)  append("Ctrl+")
                 if (mods.shift) append("Shift+")
@@ -606,15 +600,15 @@ class ConfigScreen(
                 append(keyName)
             }
         }
-        val lw = textRenderer.getWidth(label)
-        ctx.drawText(textRenderer, label, x + (mainW - lw) / 2, y + (h - textRenderer.fontHeight) / 2, C_TEXT, false)
+        val lw = font.width(label)
+        state.text(font, label, x + (mainW - lw) / 2, y + (h - font.lineHeight) / 2, C_TEXT, false)
 
         if (canReset) {
             val rx = x + mainW
             val resetHov = hov && mx in rx until rx + resetW
-            ctx.fill(rx, y, rx + resetW, y + h, if (resetHov) C_SURFACE1 else C_SURFACE0)
-            val rw = textRenderer.getWidth("↺")
-            ctx.drawText(textRenderer, "↺", rx + (resetW - rw) / 2, y + (h - textRenderer.fontHeight) / 2, C_OVERLAY0, false)
+            state.fill(rx, y, rx + resetW, y + h, if (resetHov) C_SURFACE1 else C_SURFACE0)
+            val rw = font.width("↺")
+            state.text(font, "↺", rx + (resetW - rw) / 2, y + (h - font.lineHeight) / 2, C_OVERLAY0, false)
         }
     }
 
@@ -629,25 +623,21 @@ class ConfigScreen(
         return super.mouseScrolled(mouseX, mouseY, hAmt, vAmt)
     }
 
-    override fun mouseClicked(click: Click, doubled: Boolean): Boolean {
+    override fun mouseClicked(click: MouseButtonEvent, doubled: Boolean): Boolean {
         val mx = click.x().toInt(); val my = click.y().toInt()
 
         // Capture mouse button for keybind rebinding
         val capturingMouse = capturingKeybind
         if (capturingMouse != null) {
             val button = click.button()
-            val win    = client?.window?.handle
-            val ctrl   = win != null && (GLFW.glfwGetKey(win, GLFW.GLFW_KEY_LEFT_CONTROL)  == GLFW.GLFW_PRESS || GLFW.glfwGetKey(win, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS)
-            val shift  = win != null && (GLFW.glfwGetKey(win, GLFW.GLFW_KEY_LEFT_SHIFT)    == GLFW.GLFW_PRESS || GLFW.glfwGetKey(win, GLFW.GLFW_KEY_RIGHT_SHIFT)   == GLFW.GLFW_PRESS)
-            val alt    = win != null && (GLFW.glfwGetKey(win, GLFW.GLFW_KEY_LEFT_ALT)      == GLFW.GLFW_PRESS || GLFW.glfwGetKey(win, GLFW.GLFW_KEY_RIGHT_ALT)     == GLFW.GLFW_PRESS)
-            val packed = KeybindPacked.packMouse(button, Modifiers(ctrl, shift, alt))
+            val packed = KeybindPacked.packMouse(button, Modifiers(click.hasControlDown(), click.hasShiftDown(), click.hasAltDown()))
             capturingMouse.set(packed)
             capturingMouse.onChanged?.invoke(packed)
             capturingKeybind = null
             return true
         }
 
-        // Route to overlay stack first — always consumes the click when an overlay is open
+        // Route to overlay stack first - always consumes the click when an overlay is open
         if (overlayStack.isOpen) {
             overlayStack.handleMouseClicked(mx, my)
             // Also do global scTextField defocus pass
@@ -662,7 +652,13 @@ class ConfigScreen(
         val bw = 80; val bh = 20
         val bx = width / 2 - bw / 2; val by = height - BOT_H + (BOT_H - bh) / 2
         if (mx in bx until bx + bw && my in by until by + bh) {
-            manager.save(); client?.setScreen(parent); return true
+            manager.save()
+            //? if >= 26.2 {
+            /*minecraft.gui.setScreen(parent)
+            *///?} else {
+            minecraft.setScreen(parent)
+            //?}
+            return true
         }
 
         if (super.mouseClicked(click, doubled)) return true
@@ -673,7 +669,7 @@ class ConfigScreen(
                 if (my in item.y until item.y + item.h) {
                     selCat = item.catIdx; selSubCat = item.subCatIdx
                     scroll = 0; searchText = ""
-                    searchField?.setText(""); rebuildRows(); syncWidgets()
+                    searchField?.setValue(""); rebuildRows(); syncWidgets()
                     break
                 }
             }
@@ -724,7 +720,7 @@ class ConfigScreen(
                     anchorW       = ww,
                     screenHeight  = { height },
                     accentColor   = { accentColor },
-                    tr            = textRenderer,
+                    tr            = font,
                     closeCallback = { overlayStack.pop() },
                 ))
             }
@@ -761,7 +757,7 @@ class ConfigScreen(
                     anchorW       = ww,
                     screenHeight  = { height },
                     accentColor   = { accentColor },
-                    tr            = textRenderer,
+                    tr            = font,
                     closeCallback = { overlayStack.pop() },
                 ))
             }
@@ -770,14 +766,14 @@ class ConfigScreen(
         return true
     }
 
-    override fun mouseDragged(click: Click, deltaX: Double, deltaY: Double): Boolean {
+    override fun mouseDragged(click: MouseButtonEvent, deltaX: Double, deltaY: Double): Boolean {
         if (overlayStack.mouseDragged(click.x().toInt(), click.y().toInt())) return true
         val drag = draggingSlider
         if (drag != null) { applySliderX(drag, click.x().toInt()); return true }
         return super.mouseDragged(click, deltaX, deltaY)
     }
 
-    override fun mouseReleased(click: Click): Boolean {
+    override fun mouseReleased(click: MouseButtonEvent): Boolean {
         overlayStack.mouseReleased()
         if (draggingSlider != null) {
             draggingSlider = null
@@ -786,7 +782,7 @@ class ConfigScreen(
         return super.mouseReleased(click)
     }
 
-    override fun keyPressed(input: KeyInput): Boolean {
+    override fun keyPressed(input: KeyEvent): Boolean {
         val keyCode = input.key(); val mods = input.modifiers()
 
         // Route to overlay stack first
@@ -803,22 +799,27 @@ class ConfigScreen(
                 keyCode == GLFW.GLFW_KEY_LEFT_SHIFT     || keyCode == GLFW.GLFW_KEY_RIGHT_SHIFT   ||
                 keyCode == GLFW.GLFW_KEY_LEFT_ALT       || keyCode == GLFW.GLFW_KEY_RIGHT_ALT
             ) return true
-            val ctrl  = (mods and GLFW.GLFW_MOD_CONTROL) != 0
-            val shift = (mods and GLFW.GLFW_MOD_SHIFT)   != 0
-            val alt   = (mods and GLFW.GLFW_MOD_ALT)     != 0
-            val packed = KeybindPacked.pack(keyCode, Modifiers(ctrl, shift, alt))
+            val packed = KeybindPacked.pack(keyCode, Modifiers(input.hasControlDown(), input.hasShiftDown(), input.hasAltDown()))
             capturing.set(packed)
             capturing.onChanged?.invoke(packed)
             capturingKeybind = null
             return true
         }
 
-        if (input.key() == GLFW.GLFW_KEY_ESCAPE) { manager.save(); client?.setScreen(parent); return true }
+        if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+            manager.save()
+            //? if >= 26.2 {
+            /*minecraft.gui.setScreen(parent)
+            *///?} else {
+            minecraft.setScreen(parent)
+            //?}
+            return true
+        }
         return super.keyPressed(input)
     }
 
-    override fun charTyped(input: CharInput): Boolean {
-        if (!input.isValidChar()) return false
+    override fun charTyped(input: CharacterEvent): Boolean {
+        if (!input.isAllowedChatCharacter()) return false
         val chr = input.codepoint().toChar()
         if (overlayStack.charTyped(chr)) return true
         if (scTextFields.values.firstOrNull { it.focused }?.charTyped(chr) == true) return true

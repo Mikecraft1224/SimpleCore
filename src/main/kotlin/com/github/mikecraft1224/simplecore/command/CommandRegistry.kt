@@ -2,7 +2,7 @@ package com.github.mikecraft1224.simplecore.command
 
 import com.github.mikecraft1224.simplecore.Logger
 import com.github.mikecraft1224.simplecore.bus.api.Feature
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -82,7 +82,7 @@ object CommandRegistry {
             registrations.forEach { (handle, builder, aliases) ->
                 val node = dispatcher.register(builder.buildLiteral(handle))
                 aliases.forEach { alias ->
-                    val aliasBuilder = ClientCommandManager.literal(alias)
+                    val aliasBuilder = ClientCommands.literal(alias)
                         .redirect(node)
                     node.command?.let { aliasBuilder.executes(it) }
                     dispatcher.register(aliasBuilder)

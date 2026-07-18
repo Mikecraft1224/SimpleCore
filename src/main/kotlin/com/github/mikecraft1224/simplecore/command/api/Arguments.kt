@@ -3,8 +3,12 @@
 package com.github.mikecraft1224.simplecore.command.api
 
 import com.mojang.brigadier.arguments.*
-import net.minecraft.command.argument.ColorArgumentType
-import net.minecraft.command.argument.IdentifierArgumentType
+import net.minecraft.commands.arguments.IdentifierArgument
+//? if >= 26.2 {
+/*import net.minecraft.commands.arguments.TeamColorArgument
+*///?} else {
+import net.minecraft.commands.arguments.ColorArgument
+//?}
 
 /**
  * Convenience factories for Brigadier argument types.
@@ -80,16 +84,20 @@ fun greedyString(): StringArgumentType = StringArgumentType.greedyString()
  * }
  * ```
  */
-fun identifier(): IdentifierArgumentType = IdentifierArgumentType.identifier()
+fun identifier(): IdentifierArgument = IdentifierArgument.id()
 
 /**
- * Minecraft formatting color argument - accepts color names (`red`, `blue`, `gold`, etc.).
+ * Named color argument - accepts team-color names (`red`, `blue`, `gold`, etc.).
  * Retrieve via [ClientCommandContext.color].
  *
  * ```kotlin
  * argument("color", color()) {
- *     executes { sendFeedback("Color: ${color("color").getName()}") }
+ *     executes { sendFeedback("Color: ${color("color")}") }
  * }
  * ```
  */
-fun color(): ColorArgumentType = ColorArgumentType.color()
+//? if >= 26.2 {
+/*fun color(): TeamColorArgument = TeamColorArgument.teamColor()
+*///?} else {
+fun color(): ColorArgument = ColorArgument.color()
+//?}

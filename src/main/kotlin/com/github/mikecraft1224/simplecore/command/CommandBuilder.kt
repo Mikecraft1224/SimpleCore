@@ -11,7 +11,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 
 /**
@@ -388,7 +388,7 @@ class CommandBuilder internal constructor(
 
     /** Builds the root literal Brigadier node. Called once per game session join. */
     internal fun buildLiteral(handle: CommandHandle): LiteralArgumentBuilder<FabricClientCommandSource> {
-        val node = ClientCommandManager.literal(name)
+        val node = ClientCommands.literal(name)
         val guard = requires
         node.requires { source -> handle.isEnabled && (guard == null || guard(source)) }
         executes?.let { block ->
@@ -406,7 +406,7 @@ class CommandBuilder internal constructor(
 
     @Suppress("UNCHECKED_CAST")
     private fun buildArgument(handle: CommandHandle): RequiredArgumentBuilder<FabricClientCommandSource, *> {
-        val node = ClientCommandManager.argument(name, argumentType as ArgumentType<Any>)
+        val node = ClientCommands.argument(name, argumentType as ArgumentType<Any>)
         suggestionsProvider?.let { provider ->
             node.suggests { ctx, builder ->
                 builder.provider(ctx)

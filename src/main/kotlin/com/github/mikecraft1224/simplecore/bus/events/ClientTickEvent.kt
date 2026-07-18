@@ -6,7 +6,7 @@ import com.github.mikecraft1224.simplecore.bus.EventRegistry
 import com.github.mikecraft1224.simplecore.bus.api.Event
 import com.github.mikecraft1224.simplecore.bus.api.EventCompanion
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
-import net.minecraft.client.MinecraftClient
+import net.minecraft.client.Minecraft
 
 /**
  * Fired once per client tick at both the [START][Phase.START] and [END][Phase.END] of each tick.
@@ -31,7 +31,7 @@ import net.minecraft.client.MinecraftClient
  * @property tickCount Monotonically increasing counter. Incremented independently per phase.
  * @property phase     Whether this is a START or END tick.
  */
-class ClientTickEvent(val client: MinecraftClient, val tickCount: Int, val phase: Phase) : Event() {
+class ClientTickEvent(val client: Minecraft, val tickCount: Int, val phase: Phase) : Event() {
     enum class Phase { START, END }
 
     /** Returns `true` every [i] ticks, offset by [offset]. Useful for rate-limiting handlers. */

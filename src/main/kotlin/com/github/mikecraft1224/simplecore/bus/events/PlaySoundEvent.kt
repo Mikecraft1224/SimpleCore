@@ -3,8 +3,8 @@
 package com.github.mikecraft1224.simplecore.bus.events
 
 import com.github.mikecraft1224.simplecore.bus.api.CancellableEvent
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.Vec3d
+import net.minecraft.resources.Identifier
+import net.minecraft.world.phys.Vec3
 
 /**
  * Fired when the server sends a sound play packet to the client.
@@ -13,7 +13,7 @@ import net.minecraft.util.math.Vec3d
  */
 class PlaySoundEvent(
     val soundId: Identifier,
-    val pos: Vec3d,
+    val pos: Vec3,
     val volume: Float,
     val pitch: Float,
 ) : CancellableEvent()

@@ -1,4 +1,4 @@
-﻿@file:Suppress("unused")
+@file:Suppress("unused")
 
 package com.github.mikecraft1224.simplecore.examples.overlay
 
@@ -7,11 +7,11 @@ import com.github.mikecraft1224.simplecore.bus.events.ClientTickEvent
 import com.github.mikecraft1224.simplecore.overlay.api.HudElement
 import com.github.mikecraft1224.simplecore.overlay.api.HudRenderable
 import com.github.mikecraft1224.simplecore.overlay.api.OverlayPosition
-import net.minecraft.client.MinecraftClient
-import net.minecraft.util.math.BlockPos
+import net.minecraft.client.Minecraft
+import net.minecraft.core.BlockPos
 
 /**
- * Example HUD overlay — a compact session stats tracker demonstrating all [HudRenderable] types.
+ * Example HUD overlay - a compact session stats tracker demonstrating all [HudRenderable] types.
  *
  * - **Clickable title**: left-click resets the session kill counter.
  * - **Hoverable kills line**: shows a tooltip with session context.
@@ -21,7 +21,7 @@ import net.minecraft.util.math.BlockPos
  * The panel is repositioned from in-game by pressing the overlay editor keybind (default: O).
  *
  * To persist the position across sessions, store it in a `@Config` class and pass it to
- * the constructor — see TestConfig.kt for the pattern.
+ * the constructor - see TestConfig.kt for the pattern.
  */
 object SessionTracker : HudElement("Session Tracker", OverlayPosition(10f, 120f)) {
 
@@ -41,14 +41,14 @@ object SessionTracker : HudElement("Session Tracker", OverlayPosition(10f, 120f)
 
     // -- Lifecycle -------------------------------------------------------------
 
-    override fun isEnabled() = MinecraftClient.getInstance().player != null
+    override fun isEnabled() = Minecraft.getInstance().player != null
 
     // -- Data update (every tick) ----------------------------------------------
 
     @Subscribe
     fun onTick(event: ClientTickEvent) {
         if (event.phase != ClientTickEvent.Phase.END) return
-        cachedPos = event.client.player?.blockPos
+        cachedPos = event.client.player?.blockPosition()
     }
 
     // -- Content ---------------------------------------------------------------
@@ -68,7 +68,7 @@ object SessionTracker : HudElement("Session Tracker", OverlayPosition(10f, 120f)
         val m = ((elapsed / 60_000) % 60).toInt()
         val s = ((elapsed / 1_000) % 60).toInt()
 
-        // horizontal: label on the left, value on the right — demonstrates HudRenderable.horizontal()
+        // horizontal: label on the left, value on the right - demonstrates HudRenderable.horizontal()
         add(HudRenderable.horizontal(listOf(
             HudRenderable.text("§7Time: ", 0xFFAAAAAA.toInt()),
             HudRenderable.text("§f%d:%02d:%02d".format(h, m, s)),

@@ -3,7 +3,7 @@
 package com.github.mikecraft1224.simplecore.bus.events
 
 import com.github.mikecraft1224.simplecore.bus.api.Event
-import net.minecraft.entity.Entity
+import net.minecraft.world.entity.Entity
 
 /** Fired when an entity is added to the client world (via mixin on ClientWorld.addEntity). */
 class EntityEnterWorldEvent(val entity: Entity) : Event()

@@ -1,11 +1,10 @@
-﻿@file:Suppress("unused")
+@file:Suppress("unused")
 
 package com.github.mikecraft1224.simplecore.config.screen
 
 import com.github.mikecraft1224.simplecore.config.ProcessedEntry
-import com.github.mikecraft1224.simplecore.ui.ScTextField
-import net.minecraft.client.font.TextRenderer
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.Font
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import org.lwjgl.glfw.GLFW
 import java.util.IdentityHashMap
 
@@ -13,7 +12,7 @@ import java.util.IdentityHashMap
 
 interface ConfigOverlay {
     fun hitTests(mx: Int, my: Int): Boolean
-    fun render(ctx: DrawContext, mx: Int, my: Int)
+    fun render(state: GuiGraphicsExtractor, mx: Int, my: Int)
     fun mouseClicked(mx: Int, my: Int): Boolean
     fun keyPressed(keyCode: Int, mods: Int): Boolean = false
     fun charTyped(chr: Char): Boolean = false
@@ -50,7 +49,7 @@ class OverlayLayer(val overlays: MutableList<ConfigOverlay> = mutableListOf()) {
         if (idx >= 0) overlays[idx] = new else overlays.add(new)
     }
 
-    fun render(ctx: DrawContext, mx: Int, my: Int) = overlays.forEach { it.render(ctx, mx, my) }
+    fun render(state: GuiGraphicsExtractor, mx: Int, my: Int) = overlays.forEach { it.render(state, mx, my) }
     fun keyPressed(keyCode: Int, mods: Int)  = overlays.reversed().any { it.keyPressed(keyCode, mods) }
     fun charTyped(chr: Char)                 = overlays.reversed().any { it.charTyped(chr) }
     fun mouseScrolled(vAmt: Double)          = overlays.reversed().any { it.mouseScrolled(vAmt) }
@@ -96,7 +95,7 @@ class OverlayStack {
         }
     }
 
-    fun render(ctx: DrawContext, mx: Int, my: Int) = layers.forEach { it.render(ctx, mx, my) }
+    fun render(state: GuiGraphicsExtractor, mx: Int, my: Int) = layers.forEach { it.render(state, mx, my) }
 
     fun keyPressed(keyCode: Int, mods: Int): Boolean {
         if (isEmpty) return false
@@ -116,7 +115,7 @@ class OverlayStack {
 /**
  * Snapshot of parent-screen services passed to overlay classes.
  *
- * @property tr               The current text renderer.
+ * @property tr               The current font.
  * @property getW             Returns the current screen width.
  * @property getH             Returns the current screen height.
  * @property scFields         Map of [ScTextField] instances keyed by entry identity.
@@ -126,12 +125,12 @@ class OverlayStack {
  * @property drawWidget       Draws the standard widget for a [ProcessedEntry] at a given position.
  */
 class ConfigScreenCtx(
-    val tr: TextRenderer,
+    val tr: Font,
     val getW: () -> Int,
     val getH: () -> Int,
     val scFields: IdentityHashMap<ProcessedEntry, ScTextField>,
     val accentColor: () -> Int,
     val startSliderDrag: (entry: ProcessedEntry.SliderEntry, mx: Int, trackX: Int, trackW: Int) -> Unit,
     val captureKeybind: (ProcessedEntry.KeybindEntry) -> Unit,
-    val drawWidget: (ctx: DrawContext, entry: ProcessedEntry, x: Int, y: Int, w: Int, h: Int, mx: Int, my: Int) -> Unit,
+    val drawWidget: (state: GuiGraphicsExtractor, entry: ProcessedEntry, x: Int, y: Int, w: Int, h: Int, mx: Int, my: Int) -> Unit,
 )

@@ -3,8 +3,8 @@
 package com.github.mikecraft1224.simplecore.bus.events
 
 import com.github.mikecraft1224.simplecore.bus.api.Event
-import net.minecraft.block.BlockState
-import net.minecraft.util.math.BlockPos
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.block.state.BlockState
 
 /**
  * Fired when the server sends a block update for a single block.

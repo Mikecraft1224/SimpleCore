@@ -6,8 +6,8 @@ import com.github.mikecraft1224.simplecore.bus.EventRegistry
 import com.github.mikecraft1224.simplecore.bus.api.Event
 import com.github.mikecraft1224.simplecore.bus.api.EventCompanion
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
-import net.minecraft.item.ItemStack
-import net.minecraft.text.Text
+import net.minecraft.network.chat.Component
+import net.minecraft.world.item.ItemStack
 
 /**
  * Fired when an item tooltip is being built. Mutate [lines] to add, remove, or
@@ -15,7 +15,7 @@ import net.minecraft.text.Text
  */
 class ItemTooltipEvent(
     val stack: ItemStack,
-    val lines: MutableList<Text>,
+    val lines: MutableList<Component>,
 ) : Event() {
     companion object : EventCompanion {
         private var registered = false

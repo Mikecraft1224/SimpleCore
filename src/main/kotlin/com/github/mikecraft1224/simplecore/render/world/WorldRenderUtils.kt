@@ -1,359 +1,296 @@
-﻿@file:Suppress("unused")
+@file:Suppress("unused")
 
 package com.github.mikecraft1224.simplecore.render.world
 
 import com.github.mikecraft1224.simplecore.bus.events.RenderWorldEvent
-import com.github.mikecraft1224.simplecore.render.api.ScRenderPipelines
-import com.github.mikecraft1224.simplecore.render.internal.PipelineRenderer
 import com.github.mikecraft1224.simplecore.utils.Color
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.font.TextRenderer.TextLayerType
-import net.minecraft.client.render.LightmapTextureManager
-import net.minecraft.client.render.RenderLayer
-import net.minecraft.client.render.VertexRendering
-import net.minecraft.client.render.debug.DebugRenderer
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Box
-import net.minecraft.util.math.Vec3d
-import kotlin.math.sqrt
-
-enum class BoxStyle { FILLED, OUTLINED, BOTH }
+import net.minecraft.client.Minecraft
+import net.minecraft.gizmos.GizmoStyle
+import net.minecraft.gizmos.Gizmos
+import net.minecraft.gizmos.TextGizmo
+import net.minecraft.world.phys.AABB
+import net.minecraft.world.phys.Vec3
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
- * Draws a box with the given [style] (filled faces, outline edges, or both).
+ * Draws a circle outline at [center] via [net.minecraft.gizmos.Gizmos.circle].
  *
- * @param box Axis-aligned bounding box in world space.
- * @param color Fill/line color.
- * @param style Whether to draw filled faces, outline edges, or both.
- * @param seeThroughBlocks When true, geometry is visible through terrain.
+ * @param center World-space center point.
+ * @param radius Circle radius in blocks.
  */
-fun RenderWorldEvent.drawBox(
-    box: Box,
+fun RenderWorldEvent.drawCircle(
+    center: Vec3,
+    radius: Double,
     color: Color,
-    style: BoxStyle = BoxStyle.OUTLINED,
     seeThroughBlocks: Boolean = false,
+    lineWidth: Float = 1f,
 ) {
-    when (style) {
-        BoxStyle.FILLED -> drawFilledBox(box, color, seeThroughBlocks)
-        BoxStyle.OUTLINED -> drawOutlinedBox(box, color, seeThroughBlocks)
-        BoxStyle.BOTH -> {
-            drawFilledBox(box, color, seeThroughBlocks)
-            drawOutlinedBox(box, color, seeThroughBlocks)
-        }
-    }
+    val props = Gizmos.circle(center, radius.toFloat(), GizmoStyle.stroke(color.argb, lineWidth))
+    if (seeThroughBlocks) props.setAlwaysOnTop()
 }
 
-/** Draws a solid-filled axis-aligned box. */
-fun RenderWorldEvent.drawFilledBox(
-    box: Box,
+/** Draws a filled disc at [center]. */
+fun RenderWorldEvent.drawFilledCircle(
+    center: Vec3,
+    radius: Double,
     color: Color,
     seeThroughBlocks: Boolean = false,
-    priority: Int = RenderWorldEvent.PRIORITY_WORLD,
 ) {
-    val cam = camera.pos
-    val r = color.r / 255f; val g = color.g / 255f
-    val b = color.b / 255f; val a = color.a / 255f
-
-    enqueue(priority) {
-        if (seeThroughBlocks) {
-            matrices.push()
-            matrices.translate(-cam.x, -cam.y, -cam.z)
-            val m = matrices.peek().positionMatrix
-            PipelineRenderer.drawQuads(ScRenderPipelines.FILLED_XRAY) {
-                val minX = box.minX.toFloat(); val minY = box.minY.toFloat(); val minZ = box.minZ.toFloat()
-                val maxX = box.maxX.toFloat(); val maxY = box.maxY.toFloat(); val maxZ = box.maxZ.toFloat()
-                // Front
-                vertex(m, minX, minY, maxZ).color(r, g, b, a)
-                vertex(m, maxX, minY, maxZ).color(r, g, b, a)
-                vertex(m, maxX, maxY, maxZ).color(r, g, b, a)
-                vertex(m, minX, maxY, maxZ).color(r, g, b, a)
-                // Back
-                vertex(m, maxX, minY, minZ).color(r, g, b, a)
-                vertex(m, minX, minY, minZ).color(r, g, b, a)
-                vertex(m, minX, maxY, minZ).color(r, g, b, a)
-                vertex(m, maxX, maxY, minZ).color(r, g, b, a)
-                // Left
-                vertex(m, minX, minY, minZ).color(r, g, b, a)
-                vertex(m, minX, minY, maxZ).color(r, g, b, a)
-                vertex(m, minX, maxY, maxZ).color(r, g, b, a)
-                vertex(m, minX, maxY, minZ).color(r, g, b, a)
-                // Right
-                vertex(m, maxX, minY, maxZ).color(r, g, b, a)
-                vertex(m, maxX, minY, minZ).color(r, g, b, a)
-                vertex(m, maxX, maxY, minZ).color(r, g, b, a)
-                vertex(m, maxX, maxY, maxZ).color(r, g, b, a)
-                // Top
-                vertex(m, minX, maxY, maxZ).color(r, g, b, a)
-                vertex(m, maxX, maxY, maxZ).color(r, g, b, a)
-                vertex(m, maxX, maxY, minZ).color(r, g, b, a)
-                vertex(m, minX, maxY, minZ).color(r, g, b, a)
-                // Bottom
-                vertex(m, minX, minY, minZ).color(r, g, b, a)
-                vertex(m, maxX, minY, minZ).color(r, g, b, a)
-                vertex(m, maxX, minY, maxZ).color(r, g, b, a)
-                vertex(m, minX, minY, maxZ).color(r, g, b, a)
-            }
-            matrices.pop()
-        } else {
-            val layer = RenderLayer.getDebugFilledBox()
-            val buf = vertexConsumerProvider.getBuffer(layer)
-            matrices.push()
-            matrices.translate(-cam.x, -cam.y, -cam.z)
-            VertexRendering.drawFilledBox(
-                matrices, buf,
-                box.minX.toFloat(), box.minY.toFloat(), box.minZ.toFloat(),
-                box.maxX.toFloat(), box.maxY.toFloat(), box.maxZ.toFloat(),
-                r, g, b, a,
-            )
-            matrices.pop()
-            vertexConsumerProvider.draw(layer)
-        }
-    }
+    val props = Gizmos.circle(center, radius.toFloat(), GizmoStyle.fill(color.argb))
+    if (seeThroughBlocks) props.setAlwaysOnTop()
 }
 
-/** Draws the 12 edges of an axis-aligned box as lines. */
-fun RenderWorldEvent.drawOutlinedBox(
-    box: Box,
+/** Draws a connected sequence of line segments through [points]. */
+fun RenderWorldEvent.drawPolyline(
+    points: List<Vec3>,
     color: Color,
     seeThroughBlocks: Boolean = false,
-    priority: Int = RenderWorldEvent.PRIORITY_WORLD,
+    lineWidth: Float = 1f,
 ) {
-    val cam = camera.pos
-    val r = color.r / 255f; val g = color.g / 255f
-    val b = color.b / 255f; val a = color.a / 255f
-
-    enqueue(priority) {
-        matrices.push()
-        matrices.translate(-cam.x, -cam.y, -cam.z)
-
-        if (seeThroughBlocks) {
-            val entry = matrices.peek()
-            val x0 = box.minX.toFloat(); val y0 = box.minY.toFloat(); val z0 = box.minZ.toFloat()
-            val x1 = box.maxX.toFloat(); val y1 = box.maxY.toFloat(); val z1 = box.maxZ.toFloat()
-            PipelineRenderer.drawLines(ScRenderPipelines.LINE_XRAY) {
-                val bb = this
-                fun line(ax: Float, ay: Float, az: Float, bx: Float, by: Float, bz: Float) {
-                    val ddx = bx - ax; val ddy = by - ay; val ddz = bz - az
-                    val l = sqrt(ddx * ddx + ddy * ddy + ddz * ddz).coerceAtLeast(0.001f)
-                    val nx = ddx / l; val ny = ddy / l; val nz = ddz / l
-                    bb.vertex(entry, ax, ay, az).color(r, g, b, a).normal(entry, nx, ny, nz)
-                    bb.vertex(entry, bx, by, bz).color(r, g, b, a).normal(entry, nx, ny, nz)
-                }
-                // Bottom face
-                line(x0, y0, z0, x1, y0, z0); line(x1, y0, z0, x1, y0, z1)
-                line(x1, y0, z1, x0, y0, z1); line(x0, y0, z1, x0, y0, z0)
-                // Top face
-                line(x0, y1, z0, x1, y1, z0); line(x1, y1, z0, x1, y1, z1)
-                line(x1, y1, z1, x0, y1, z1); line(x0, y1, z1, x0, y1, z0)
-                // Vertical edges
-                line(x0, y0, z0, x0, y1, z0); line(x1, y0, z0, x1, y1, z0)
-                line(x1, y0, z1, x1, y1, z1); line(x0, y0, z1, x0, y1, z1)
-            }
-        } else {
-            DebugRenderer.drawBox(matrices, vertexConsumerProvider, box, r, g, b, a)
-            vertexConsumerProvider.draw(RenderLayer.LINES)
-        }
-
-        matrices.pop()
+    for (i in 0 until points.size - 1) {
+        draw3DLine(points[i], points[i + 1], color, seeThroughBlocks, lineWidth)
     }
-}
-
-/** Draws a filled highlight over a single block, inset slightly to avoid z-fighting. */
-fun RenderWorldEvent.drawBlockHighlight(
-    pos: BlockPos,
-    color: Color,
-    seeThroughBlocks: Boolean = false,
-) {
-    val inset = 0.002
-    val box = Box(
-        pos.x + inset,     pos.y + inset,     pos.z + inset,
-        pos.x + 1 - inset, pos.y + 1 - inset, pos.z + 1 - inset,
-    )
-    drawFilledBox(box, color, seeThroughBlocks)
 }
 
 /**
- * Draws a single line segment between two world-space points.
- *
- * @param from Start position.
- * @param to End position.
- * @param seeThroughBlocks When true, the line is visible through terrain.
+ * Draws a quadratic Bezier curve from [p1] to [p3] with one control point, tessellated into
+ * straight segments.
  */
-fun RenderWorldEvent.draw3DLine(
-    from: Vec3d,
-    to: Vec3d,
+fun RenderWorldEvent.drawBezier(
+    p1: Vec3,
+    control: Vec3,
+    p3: Vec3,
     color: Color,
     seeThroughBlocks: Boolean = false,
-    priority: Int = RenderWorldEvent.PRIORITY_LINE,
+    lineWidth: Float = 1f,
+    steps: Int = 20,
 ) {
-    val cam = camera.pos
-    val r = color.r / 255f; val g = color.g / 255f
-    val b = color.b / 255f; val a = color.a / 255f
-
-    val dx = (to.x - from.x).toFloat()
-    val dy = (to.y - from.y).toFloat()
-    val dz = (to.z - from.z).toFloat()
-    val len = sqrt(dx * dx + dy * dy + dz * dz).coerceAtLeast(0.001f)
-    val nx = dx / len; val ny = dy / len; val nz = dz / len
-
-    enqueue(priority) {
-        matrices.push()
-        matrices.translate(-cam.x, -cam.y, -cam.z)
-        val entry = matrices.peek()
-
-        if (seeThroughBlocks) {
-            PipelineRenderer.drawLines(ScRenderPipelines.LINE_XRAY) {
-                vertex(entry, from.x.toFloat(), from.y.toFloat(), from.z.toFloat()).color(r, g, b, a).normal(entry, nx, ny, nz)
-                vertex(entry, to.x.toFloat(),   to.y.toFloat(),   to.z.toFloat()  ).color(r, g, b, a).normal(entry, nx, ny, nz)
-            }
-        } else {
-            val layer = RenderLayer.LINES
-            val buf = vertexConsumerProvider.getBuffer(layer)
-            buf.vertex(entry, from.x.toFloat(), from.y.toFloat(), from.z.toFloat()).color(r, g, b, a).normal(entry, nx, ny, nz)
-            buf.vertex(entry, to.x.toFloat(),   to.y.toFloat(),   to.z.toFloat()  ).color(r, g, b, a).normal(entry, nx, ny, nz)
-            vertexConsumerProvider.draw(layer)
-        }
-
-        matrices.pop()
+    val pts = ArrayList<Vec3>(steps + 1)
+    for (i in 0..steps) {
+        val t = i.toDouble() / steps
+        val mt = 1.0 - t
+        val x = mt * mt * p1.x + 2 * mt * t * control.x + t * t * p3.x
+        val y = mt * mt * p1.y + 2 * mt * t * control.y + t * t * p3.y
+        val z = mt * mt * p1.z + 2 * mt * t * control.z + t * t * p3.z
+        pts.add(Vec3(x, y, z))
     }
+    drawPolyline(pts, color, seeThroughBlocks, lineWidth)
 }
 
 /**
- * Draws a tracer line from the camera crosshair to [to].
- *
- * The line starts slightly in front of the camera to clear the near-clip plane.
- */
-fun RenderWorldEvent.drawTracer(
-    to: Vec3d,
-    color: Color,
-    seeThroughBlocks: Boolean = false,
-    priority: Int = RenderWorldEvent.PRIORITY_LINE,
-) {
-    val from = camera.pos
-    val dir = to.subtract(from)
-    val len = dir.length()
-    if (len < 0.001) return
-    // Offset 0.15 units toward the target to clear the near-clip plane (Minecraft uses 0.05f).
-    draw3DLine(from.add(dir.multiply(0.15 / len)), to, color, seeThroughBlocks, priority)
-}
-
-/**
- * Draws a line segment with a color gradient between the two endpoints.
- *
- * @param from Start position in world space.
- * @param to End position in world space.
- * @param colorFrom Color at [from].
- * @param colorTo Color at [to].
- * @param seeThroughBlocks When true, the line is visible through terrain.
+ * Draws a line whose color interpolates from [colorFrom] to [colorTo], approximated as a
+ * sequence of short segments since gizmo lines only support one solid color each.
  */
 fun RenderWorldEvent.drawGradientLine(
-    from: Vec3d,
-    to: Vec3d,
+    from: Vec3,
+    to: Vec3,
     colorFrom: Color,
     colorTo: Color,
     seeThroughBlocks: Boolean = false,
-    priority: Int = RenderWorldEvent.PRIORITY_LINE,
+    lineWidth: Float = 1f,
+    segments: Int = 12,
 ) {
-    val cam = camera.pos
-    val r0 = colorFrom.r / 255f; val g0 = colorFrom.g / 255f; val b0 = colorFrom.b / 255f; val a0 = colorFrom.a / 255f
-    val r1 = colorTo.r / 255f;   val g1 = colorTo.g / 255f;   val b1 = colorTo.b / 255f;   val a1 = colorTo.a / 255f
-    val dx = (to.x - from.x).toFloat(); val dy = (to.y - from.y).toFloat(); val dz = (to.z - from.z).toFloat()
-    val len = sqrt(dx * dx + dy * dy + dz * dz).coerceAtLeast(0.001f)
-    val nx = dx / len; val ny = dy / len; val nz = dz / len
-
-    enqueue(priority) {
-        matrices.push()
-        matrices.translate(-cam.x, -cam.y, -cam.z)
-        val entry = matrices.peek()
-
-        if (seeThroughBlocks) {
-            PipelineRenderer.drawLines(ScRenderPipelines.LINE_XRAY) {
-                vertex(entry, from.x.toFloat(), from.y.toFloat(), from.z.toFloat()).color(r0, g0, b0, a0).normal(entry, nx, ny, nz)
-                vertex(entry, to.x.toFloat(),   to.y.toFloat(),   to.z.toFloat()  ).color(r1, g1, b1, a1).normal(entry, nx, ny, nz)
-            }
-        } else {
-            val layer = RenderLayer.LINES
-            val buf = vertexConsumerProvider.getBuffer(layer)
-            buf.vertex(entry, from.x.toFloat(), from.y.toFloat(), from.z.toFloat()).color(r0, g0, b0, a0).normal(entry, nx, ny, nz)
-            buf.vertex(entry, to.x.toFloat(),   to.y.toFloat(),   to.z.toFloat()  ).color(r1, g1, b1, a1).normal(entry, nx, ny, nz)
-            vertexConsumerProvider.draw(layer)
-        }
-
-        matrices.pop()
+    for (i in 0 until segments) {
+        val t0 = i.toDouble() / segments
+        val t1 = (i + 1).toDouble() / segments
+        val a = from.lerp(to, t0)
+        val b = from.lerp(to, t1)
+        val c = colorFrom.blend(colorTo, ((t0 + t1) / 2).toFloat())
+        draw3DLine(a, b, c, seeThroughBlocks, lineWidth)
     }
 }
 
 /**
- * Draws a gradient tracer line from the camera crosshair to [to].
+ * Draws a gradient tracer line from the player's crosshair to [to].
  *
- * @param to Target position in world space.
- * @param colorFrom Color at the camera end.
- * @param colorTo Color at [to].
- * @param seeThroughBlocks When true, the line is visible through terrain.
+ * Like [drawTracer], the start point is offset [forwardOffset] blocks along the player's look
+ * direction rather than along the camera-to-[to] vector - a line drawn directly toward its own
+ * endpoint is collinear with the view axis and therefore invisible (every point along it
+ * projects to the same pixel).
  */
 fun RenderWorldEvent.drawGradientTracer(
-    to: Vec3d,
+    to: Vec3,
     colorFrom: Color,
     colorTo: Color,
     seeThroughBlocks: Boolean = false,
-    priority: Int = RenderWorldEvent.PRIORITY_LINE,
+    lineWidth: Float = 1f,
+    forwardOffset: Double = 2.0,
 ) {
-    val from = camera.pos
-    val dir = to.subtract(from)
-    val len = dir.length()
-    if (len < 0.001) return
-    drawGradientLine(from.add(dir.multiply(0.15 / len)), to, colorFrom, colorTo, seeThroughBlocks, priority)
+    val player = Minecraft.getInstance().player ?: return
+    val eyePos = player.getEyePosition(tickDelta)
+    val lookVec = player.getViewVector(tickDelta)
+    drawGradientLine(eyePos.add(lookVec.scale(forwardOffset)), to, colorFrom, colorTo, seeThroughBlocks, lineWidth)
 }
 
 /**
- * Renders a billboard text label at a world-space position.
+ * Renders a billboard text label at a world-space position via [net.minecraft.gizmos.Gizmos.billboardText].
  *
- * The text is always camera-facing. Scale 1f corresponds to roughly one block in height
- * at a distance of 10 blocks.
- *
- * @param pos World-space anchor (bottom-center of the text).
+ * @param pos World-space anchor.
  * @param scale Text scale multiplier (1f = default size).
- * @param seeThroughBlocks When true, text is visible through terrain.
  */
 fun RenderWorldEvent.drawText(
-    pos: Vec3d,
+    pos: Vec3,
     text: String,
     scale: Float = 1f,
     color: Color = Color.WHITE,
-    shadow: Boolean = true,
     seeThroughBlocks: Boolean = true,
-    priority: Int = RenderWorldEvent.PRIORITY_TEXT,
 ) {
-    val cam = camera.pos
-    val r = color.argb
+    val props = Gizmos.billboardText(text, pos, TextGizmo.Style.forColorAndCentered(color.argb).withScale(scale))
+    if (seeThroughBlocks) props.setAlwaysOnTop()
+}
 
-    enqueue(priority) {
-        val mc = MinecraftClient.getInstance()
-        val tr = mc.textRenderer
+/**
+ * Renders billboard text that scales with distance and hides when too close or too far.
+ *
+ * @param baseScale Desired apparent scale at 10 blocks distance.
+ * @param hideTooCloseAt Distance below which the label is skipped entirely.
+ * @param maxDistance Distance beyond which the label is skipped when [seeThroughBlocks] is false.
+ */
+fun RenderWorldEvent.drawDynamicText(
+    pos: Vec3,
+    text: String,
+    baseScale: Float = 1f,
+    color: Color = Color.WHITE,
+    seeThroughBlocks: Boolean = true,
+    hideTooCloseAt: Double = 0.0,
+    maxDistance: Double? = null,
+) {
+    val distance = camera.position().distanceTo(pos)
+    if (distance < hideTooCloseAt) return
+    if (!seeThroughBlocks && maxDistance != null && distance > maxDistance) return
+    val scale = (baseScale / (distance * 0.1)).toFloat().coerceIn(0.3f, 2.0f)
+    drawText(pos, text, scale, color, seeThroughBlocks)
+}
 
-        matrices.push()
-        matrices.translate(pos.x - cam.x, pos.y - cam.y, pos.z - cam.z)
-        matrices.multiply(camera.rotation)
-        // Scale and flip Y: text renderer draws downward in local space, world Y is up
-        val s = scale * 0.025f
-        matrices.scale(s, -s, s)
+/**
+ * Draws a small pillar with a text label at [pos] - a world-space waypoint marker.
+ *
+ * @param pos World-space position of the waypoint base.
+ * @param label Text shown above the marker.
+ * @param beacon When true, also draws a tall thin translucent column above the marker so it
+ *   stays visible from far away (a simplified stand-in for vanilla's real beacon beam, which
+ *   needs internals not reachable from this event - see [renderBeaconBeam]).
+ */
+fun RenderWorldEvent.drawWaypoint(
+    pos: Vec3,
+    label: String,
+    color: Color,
+    seeThroughBlocks: Boolean = true,
+    beacon: Boolean = false,
+    minimumAlpha: Float = 0.2f,
+) {
+    val distance = camera.position().distanceTo(pos)
+    val alpha = (0.1f + 0.005f * (distance * distance).toFloat()).coerceIn(minimumAlpha, 1f)
+    val box = AABB(pos.x - 0.25, pos.y, pos.z - 0.25, pos.x + 0.25, pos.y + 0.5, pos.z + 0.25)
+    drawFilledBox(box, color.withAlpha(alpha), seeThroughBlocks)
+    drawText(Vec3(pos.x, pos.y + 0.75, pos.z), label, 1f, Color.WHITE, seeThroughBlocks)
+    if (beacon && distance > 5.0) renderBeaconBeam(Vec3(pos.x, pos.y + 1, pos.z), color)
+}
 
-        val halfWidth = tr.getWidth(text) / 2f
-        val layerType = if (seeThroughBlocks) TextLayerType.SEE_THROUGH else TextLayerType.NORMAL
+/**
+ * Renders a simplified translucent vertical beam of [color] at [pos] - a lightweight
+ * long-distance visibility marker, not a call into vanilla's real beacon renderer (that needs a
+ * `SubmitNodeStorage` not reachable from [RenderWorldEvent]).
+ */
+fun RenderWorldEvent.renderBeaconBeam(
+    pos: Vec3,
+    color: Color,
+    height: Double = 300.0,
+    radius: Double = 0.15,
+    seeThroughBlocks: Boolean = true,
+) {
+    val box = AABB(pos.x - radius, pos.y, pos.z - radius, pos.x + radius, pos.y + height, pos.z + radius)
+    drawFilledBox(box, color.withAlpha(90), seeThroughBlocks)
+}
 
-        tr.draw(
-            text,
-            -halfWidth,
-            0f,
-            r,
-            shadow,
-            matrices.peek().positionMatrix,
-            vertexConsumerProvider,
-            layerType,
-            0,
-            LightmapTextureManager.MAX_LIGHT_COORDINATE,
+// -- Wireframe volumes (composed from circle/line gizmos - no filled variant available without
+// -- raw custom geometry, which needs a RenderType mods currently can't construct on 26.2) -------
+
+/**
+ * Draws a wireframe sphere using latitude rings and longitude meridians, composed from
+ * [net.minecraft.gizmos.Gizmos.line] calls.
+ */
+fun RenderWorldEvent.drawSphere(
+    center: Vec3,
+    radius: Double,
+    color: Color,
+    seeThroughBlocks: Boolean = false,
+    stacks: Int = 16,
+    slices: Int = 32,
+    lineWidth: Float = 1f,
+) {
+    for (stack in 1 until stacks) {
+        val phi = Math.PI * stack / stacks
+        val ringY = cos(phi) * radius
+        val ringR = sin(phi) * radius
+        for (slice in 0 until slices) {
+            val t0 = 2 * Math.PI * slice / slices
+            val t1 = 2 * Math.PI * (slice + 1) / slices
+            draw3DLine(
+                Vec3(center.x + cos(t0) * ringR, center.y + ringY, center.z + sin(t0) * ringR),
+                Vec3(center.x + cos(t1) * ringR, center.y + ringY, center.z + sin(t1) * ringR),
+                color, seeThroughBlocks, lineWidth,
+            )
+        }
+    }
+    for (slice in 0 until slices) {
+        val theta = 2 * Math.PI * slice / slices
+        val cosT = cos(theta); val sinT = sin(theta)
+        for (stack in 0 until stacks) {
+            val phi0 = Math.PI * stack / stacks
+            val phi1 = Math.PI * (stack + 1) / stacks
+            draw3DLine(
+                Vec3(center.x + sin(phi0) * cosT * radius, center.y + cos(phi0) * radius, center.z + sin(phi0) * sinT * radius),
+                Vec3(center.x + sin(phi1) * cosT * radius, center.y + cos(phi1) * radius, center.z + sin(phi1) * sinT * radius),
+                color, seeThroughBlocks, lineWidth,
+            )
+        }
+    }
+}
+
+/** Draws a wireframe cylinder: two circle rims plus vertical connecting lines. */
+fun RenderWorldEvent.drawCylinder(
+    base: Vec3,
+    radius: Double,
+    height: Double,
+    color: Color,
+    seeThroughBlocks: Boolean = false,
+    segments: Int = 32,
+    lineWidth: Float = 1f,
+) {
+    val top = Vec3(base.x, base.y + height, base.z)
+    drawCircle(base, radius, color, seeThroughBlocks, lineWidth)
+    drawCircle(top, radius, color, seeThroughBlocks, lineWidth)
+    for (i in 0 until segments) {
+        val angle = 2 * Math.PI * i / segments
+        val dx = cos(angle) * radius
+        val dz = sin(angle) * radius
+        draw3DLine(
+            Vec3(base.x + dx, base.y, base.z + dz),
+            Vec3(top.x + dx, top.y, top.z + dz),
+            color, seeThroughBlocks, lineWidth,
         )
-        matrices.pop()
-        vertexConsumerProvider.draw()
+    }
+}
+
+/** Draws a wireframe pyramid: a square base plus four edges converging on [apex]. */
+fun RenderWorldEvent.drawPyramid(
+    apex: Vec3,
+    baseCenter: Vec3,
+    baseRadius: Double,
+    color: Color,
+    seeThroughBlocks: Boolean = false,
+    lineWidth: Float = 1f,
+) {
+    val corners = listOf(
+        Vec3(baseCenter.x - baseRadius, baseCenter.y, baseCenter.z - baseRadius),
+        Vec3(baseCenter.x + baseRadius, baseCenter.y, baseCenter.z - baseRadius),
+        Vec3(baseCenter.x + baseRadius, baseCenter.y, baseCenter.z + baseRadius),
+        Vec3(baseCenter.x - baseRadius, baseCenter.y, baseCenter.z + baseRadius),
+    )
+    for (i in corners.indices) {
+        draw3DLine(corners[i], corners[(i + 1) % corners.size], color, seeThroughBlocks, lineWidth)
+        draw3DLine(apex, corners[i], color, seeThroughBlocks, lineWidth)
     }
 }

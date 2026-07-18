@@ -1,0 +1,21 @@
+# Centralized cross-version properties - see https://stonecutter.kikugie.dev/wiki/config/properties
+# Top-level keys are shared by every version. A [".<version>"] table overrides/adds keys for just that version.
+
+mod.id = "simplecore"
+mod.name = "SimpleCore"
+mod.group = "com.github.mikecraft1224.simplecore"
+mod.class = "SimpleCore"
+mod.version = "1.0.0"
+mod.archives_base_name = "simplecore"
+mod.java_version = "25"
+
+deps.fabric_loader = "0.19.3"
+deps.fabric_kotlin = "1.13.12+kotlin.2.4.0"
+deps.class_graph = "4.8.181"
+loomx.loom_version = "1.17-SNAPSHOT"
+
+["26.1.2"]
+deps.fabric_api = "0.154.2+26.1.2"
+
+["26.2"]
+deps.fabric_api = "0.154.0+26.2"

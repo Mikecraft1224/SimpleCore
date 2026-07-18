@@ -6,14 +6,19 @@ import com.mojang.brigadier.arguments.*
 import com.mojang.brigadier.context.CommandContext
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.command.argument.ColorArgumentType
-import net.minecraft.command.argument.IdentifierArgumentType
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.Text
-import net.minecraft.util.Formatting
-import net.minecraft.util.Identifier
+import net.minecraft.client.Minecraft
+import net.minecraft.client.player.LocalPlayer
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.arguments.IdentifierArgument
+//? if >= 26.2 {
+/*import net.minecraft.commands.arguments.TeamColorArgument
+import net.minecraft.world.scores.TeamColor
+*///?} else {
+import net.minecraft.commands.arguments.ColorArgument
+import net.minecraft.ChatFormatting
+//?}
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
 
 /**
  * Wraps the Brigadier [CommandContext] for a client command, providing typed argument
@@ -40,10 +45,10 @@ class ClientCommandContext internal constructor(
     val source: FabricClientCommandSource get() = raw.source
 
     /** The Minecraft client instance. */
-    val client: MinecraftClient get() = source.client
+    val client: Minecraft get() = source.client
 
     /** The local player. Non-null during any client command execution. */
-    val player: ClientPlayerEntity get() = source.player
+    val player: LocalPlayer get() = source.player
 
     /** The full raw command string that was entered (e.g. `"mymod give Steve dirt 32"`). */
     val input: String get() = raw.input
@@ -82,14 +87,18 @@ class ClientCommandContext internal constructor(
      * Use with [identifier][com.github.mikecraft1224.simplecore.command.api.identifier] argument type.
      */
     @Suppress("UNCHECKED_CAST")
-    fun identifier(name: String): Identifier = IdentifierArgumentType.getIdentifier(raw as CommandContext<ServerCommandSource>, name)
+    fun identifier(name: String): Identifier = IdentifierArgument.getId(raw as CommandContext<CommandSourceStack>, name)
 
     /**
-     * Returns the [Formatting] color argument with the given [name].
+     * Returns the team-color argument with the given [name].
      * Use with [color][com.github.mikecraft1224.simplecore.command.api.color] argument type.
      */
     @Suppress("UNCHECKED_CAST")
-    fun color(name: String): Formatting = ColorArgumentType.getColor(raw as CommandContext<ServerCommandSource>, name)
+    //? if >= 26.2 {
+    /*fun color(name: String): TeamColor = TeamColorArgument.getTeamColor(raw as CommandContext<CommandSourceStack>, name)
+    *///?} else {
+    fun color(name: String): ChatFormatting = ColorArgument.getColor(raw as CommandContext<CommandSourceStack>, name)
+    //?}
 
     // -------------------------------------------------------------------------
     // Generic accessor - for argument types not covered above
@@ -116,16 +125,16 @@ class ClientCommandContext internal constructor(
     // -------------------------------------------------------------------------
 
     /** Sends a plain-text message to the local player's chat output. */
-    fun sendFeedback(message: String) = source.sendFeedback(Text.literal(message))
+    fun sendFeedback(message: String) = source.sendFeedback(Component.literal(message))
 
-    /** Sends a formatted [Text] message to the local player's chat output. */
-    fun sendFeedback(message: Text) = source.sendFeedback(message)
+    /** Sends a formatted [Component] message to the local player's chat output. */
+    fun sendFeedback(message: Component) = source.sendFeedback(message)
 
     /** Sends a plain-text error message to the local player's chat (shown in red). */
-    fun sendError(message: String) = source.sendError(Text.literal(message))
+    fun sendError(message: String) = source.sendError(Component.literal(message))
 
-    /** Sends a formatted [Text] error message to the local player's chat (shown in red). */
-    fun sendError(message: Text) = source.sendError(message)
+    /** Sends a formatted [Component] error message to the local player's chat (shown in red). */
+    fun sendError(message: Component) = source.sendError(message)
 
     // -------------------------------------------------------------------------
     // Exception helper
@@ -148,5 +157,5 @@ class ClientCommandContext internal constructor(
      * For errors that don't abort execution (e.g. partial success), use [sendError] instead.
      */
     fun fail(message: String): Nothing =
-        throw SimpleCommandExceptionType(Text.literal(message)).create()
+        throw SimpleCommandExceptionType(Component.literal(message)).create()
 }

@@ -9,7 +9,7 @@ import com.github.mikecraft1224.simplecore.input.api.KeyContext
 import com.github.mikecraft1224.simplecore.input.api.KeyDescriptor
 import com.github.mikecraft1224.simplecore.input.api.Modifiers
 import com.github.mikecraft1224.simplecore.input.api.applyKeybindBindings
-import net.minecraft.client.option.KeyBinding
+import net.minecraft.client.KeyMapping
 import org.lwjgl.glfw.GLFW
 
 /**
@@ -35,9 +35,12 @@ object ConfigExampleLoader {
     val config  = TestConfig()
     val manager = ConfigManager.of(config, "simplecore-test")
     lateinit var model: ProcessedConfig
+    var loaded  = false
+        private set
 
     fun register() {
         manager.load()
+        loaded = true
 
         // Register all keybinds first - withConfigBinding enqueues the binding but does
         // not require the model yet, so registrations can be spread across any file.
@@ -45,12 +48,12 @@ object ConfigExampleLoader {
             id = "simplecore.example_config_open",
             key = KeyDescriptor.from(config.configKey),
             KeyContext.IN_GAME,
-            onPress = { client -> client.setScreen(ConfigScreen(null, model, manager)) },
+            onPress = { client -> client.setScreenAndShow(ConfigScreen(null, model, manager)) },
         ).withConfigBinding(config::configKey)
 
         KeybindRegistry.registerVanilla(
             id = "key.simplecore.test",
-            category = KeyBinding.Category.MISC,
+            category = KeyMapping.Category.MISC,
             defaultKey = KeyDescriptor(modifiers = Modifiers(ctrl = true)),
             KeyContext.ANY,
             onPress = { println("Test Keybind Pressed") },

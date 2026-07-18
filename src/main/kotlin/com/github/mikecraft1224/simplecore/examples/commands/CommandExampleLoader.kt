@@ -3,7 +3,6 @@ package com.github.mikecraft1224.simplecore.examples.commands
 import com.github.mikecraft1224.simplecore.BuildConfig
 import com.github.mikecraft1224.simplecore.command.CommandRegistry
 import com.github.mikecraft1224.simplecore.examples.commands.sub.TestCommand
-import com.github.mikecraft1224.simplecore.examples.config.ConfigExampleLoader
 
 /**
  * Registers example commands when [com.github.mikecraft1224.simplecore.SimpleCore.examples.command] is true.
@@ -15,7 +14,6 @@ import com.github.mikecraft1224.simplecore.examples.config.ConfigExampleLoader
  * ```
  * /sc                       - prints mod version
  * /sc help                  - lists subcommands
- * /sc reload                - reloads the example config
  * /sc test echo <msg>       - echoes a message          <- TestCommand
  * /sc test repeat <n> <msg> - repeats a message n times <- TestCommand
  * /sc test mode <value>     - picks a mode (suggestStatic)  <- TestCommand
@@ -36,13 +34,7 @@ object CommandExampleLoader {
                 sendFeedback("§6SimpleCore commands§r")
                 sendFeedback("  §7/sc§r             - show version")
                 sendFeedback("  §7/sc help§r        - this message")
-                sendFeedback("  §7/sc reload§r      - reload the test config")
                 sendFeedback("  §7/sc test§r        - developer test commands")
-            }
-
-            literalCallback("reload") {
-                ConfigExampleLoader.manager.reload()
-                sendFeedback("§aConfig reloaded.§r")
             }
 
             // Each SubCommand is defined in its own file under sub/.

@@ -1,7 +1,8 @@
 package com.github.mikecraft1224.simplecore.overlay.api
 
 import com.github.mikecraft1224.simplecore.bus.events.RenderHudEvent
-import net.minecraft.client.MinecraftClient
+import com.github.mikecraft1224.simplecore.utils.McUtils
+import net.minecraft.client.Minecraft
 
 /**
  * Base class for moveable HUD overlays.
@@ -29,8 +30,10 @@ import net.minecraft.client.MinecraftClient
  * The [position] object should be stored in your config class if you want the position to
  * survive restarts. If you declare it inline (as above), it resets to its defaults on restart.
  *
- * Override [isEnabled] to skip rendering conditionally (e.g. player is null). The overlay
- * will not appear in the drag editor while disabled.
+ * Override [isEnabled] to skip rendering conditionally (e.g. player is null). Disabled overlays
+ * still appear in the drag editor as ghost handles so they can be repositioned even while inactive.
+ * Middle-clicking an overlay handle in the editor resets its position and scale to the values
+ * captured when the element was first registered.
  */
 abstract class HudElement(
     val displayName: String,
@@ -59,7 +62,7 @@ abstract class HudElement(
      * The returned list is automatically stacked vertically by the framework.
      * To place elements side by side, wrap them in [HudRenderable.horizontal].
      *
-     * The result is cached per frame — [buildContent] is called once per render pass
+     * The result is cached per frame - [buildContent] is called once per render pass
      * and reused if a click event arrives in the same frame.
      */
     abstract fun buildContent(): List<HudRenderable>
@@ -74,18 +77,31 @@ abstract class HudElement(
      */
     open fun mouseClicked(mx: Int, my: Int, button: Int): Boolean = false
 
+    // Captured at registration time; restored by resetToDefault() when middle-clicked in editor.
+    private val defaultX: Float = position.x
+    private val defaultY: Float = position.y
+    private val defaultScale: Float = position.scale
+
     private var frameCache: List<HudRenderable>? = null
 
     /** Clears the per-frame content cache. Called by [com.github.mikecraft1224.simplecore.overlay.HudManager] before rendering. */
     internal fun beginFrame() { frameCache = null }
 
+    /** Restores position and scale to the values captured at registration time. */
+    internal fun resetToDefault() {
+        position.x     = defaultX
+        position.y     = defaultY
+        position.scale = defaultScale
+    }
+
     /** Called once per frame by [com.github.mikecraft1224.simplecore.overlay.HudManager]. */
     internal fun renderFrame(event: RenderHudEvent) {
         if (!isEnabled()) return
-        val client = MinecraftClient.getInstance()
-        val winScale = client.window.scaleFactor
-        val screenMx = (client.mouse.x / winScale).toInt()
-        val screenMy = (client.mouse.y / winScale).toInt()
+        val client = Minecraft.getInstance()
+        val screenMx = client.mouseHandler.getScaledXPos(client.window).toInt()
+        val screenMy = client.mouseHandler.getScaledYPos(client.window).toInt()
+        val screenWidth = event.state.guiWidth()
+        val screenHeight = event.state.guiHeight()
 
         val lines = buildContent().also { frameCache = it }
         val container = HudRenderable.vertical(lines, lineSpacing)
@@ -93,14 +109,17 @@ abstract class HudElement(
         val pw = container.width + pad * 2
         val ph = container.height + pad * 2
 
-        val absX = position.x.toInt().coerceIn(0, event.screenWidth)
-        val absY = position.y.toInt().coerceIn(0, event.screenHeight)
-        val localMx = ((screenMx - absX) / position.scale).toInt()
-        val localMy = ((screenMy - absY) / position.scale).toInt()
+        val absX = position.x.toInt().coerceIn(0, screenWidth)
+        val absY = position.y.toInt().coerceIn(0, screenHeight)
+        // Suppress hover/tooltip reactivity while any screen (e.g. the overlay editor) is open -
+        // HUD elements keep rendering behind screens like vanilla's hotbar does, but shouldn't
+        // still respond to a mouse position that's actually interacting with that screen instead.
+        val localMx = if (McUtils.isScreenOpen) -1 else ((screenMx - absX) / position.scale).toInt()
+        val localMy = if (McUtils.isScreenOpen) -1 else ((screenMy - absY) / position.scale).toInt()
 
-        position.renderAt(event.ctx, event.screenWidth, event.screenHeight, displayName) { ctx ->
-            if (showBackground) ctx.fill(0, 0, pw, ph, 0xCC000000.toInt())
-            container.render(ctx, localMx, localMy, pad, pad)
+        position.renderAt(event.state, screenWidth, screenHeight, displayName) { state ->
+            if (showBackground) state.fill(0, 0, pw, ph, 0xCC000000.toInt())
+            container.render(state, localMx, localMy, pad, pad)
             OverlaySize(pw, ph)
         }
     }
@@ -109,9 +128,9 @@ abstract class HudElement(
     internal fun routeMouseClicked(screenMx: Int, screenMy: Int, button: Int): Boolean {
         if (!isEnabled()) return false
         if (mouseClicked(screenMx, screenMy, button)) return true
-        val client = MinecraftClient.getInstance()
-        val absX = position.x.toInt().coerceIn(0, client.window.scaledWidth)
-        val absY = position.y.toInt().coerceIn(0, client.window.scaledHeight)
+        val client = Minecraft.getInstance()
+        val absX = position.x.toInt().coerceIn(0, client.window.guiScaledWidth)
+        val absY = position.y.toInt().coerceIn(0, client.window.guiScaledHeight)
         val localMx = ((screenMx - absX) / position.scale).toInt()
         val localMy = ((screenMy - absY) / position.scale).toInt()
         val container = HudRenderable.vertical(frameCache ?: buildContent(), lineSpacing)

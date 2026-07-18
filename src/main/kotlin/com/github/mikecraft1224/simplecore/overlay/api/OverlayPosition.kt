@@ -1,7 +1,7 @@
 package com.github.mikecraft1224.simplecore.overlay.api
 
 import com.github.mikecraft1224.simplecore.overlay.OverlayRegistry
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.GuiGraphicsExtractor
 
 /**
  * Stores the screen position and scale of a HUD overlay.
@@ -9,7 +9,7 @@ import net.minecraft.client.gui.DrawContext
  * [x] and [y] are absolute pixel coordinates from the screen's top-left corner.
  * [scale] is a uniform multiplier applied at the overlay's local origin.
  *
- * Persists automatically via GSON — store as a field inside any config class:
+ * Persists automatically via GSON - store as a field inside any config class:
  * ```kotlin
  * @Config("My Mod")
  * object MyConfig {
@@ -30,40 +30,43 @@ class OverlayPosition(
 data class OverlaySize(val width: Int, val height: Int)
 
 /**
- * Applies this position's matrix transform to [ctx], calls [block] to render overlay
+ * Applies this position's matrix transform to [state], calls [block] to render overlay
  * content at local (0, 0), then restores the matrix.
  *
  * The [OverlaySize] returned by [block] is reported to [OverlayRegistry] so the overlay
  * shows up as a draggable handle when the overlay editor is open.
  *
- * [label] must be a stable, unique string — it is used as the registry key and displayed
+ * [label] must be a stable, unique string - it is used as the registry key and displayed
  * in the editor.
  *
  * ```kotlin
  * @Subscribe
  * fun onHud(event: RenderHudEvent) {
- *     position.renderAt(event.ctx, event.screenWidth, event.screenHeight, "FPS Counter") { ctx ->
- *         val text = "FPS: ${MinecraftClient.getInstance().currentFps}"
- *         val tr = MinecraftClient.getInstance().textRenderer
- *         ctx.drawText(tr, text, 0, 0, 0xFFFFFF, true)
- *         OverlaySize(tr.getWidth(text), tr.fontHeight)
+ *     position.renderAt(event.state, event.state.guiWidth(), event.state.guiHeight(), "FPS Counter") { state ->
+ *         val text = "FPS: ${Minecraft.getInstance().fps}"
+ *         val font = Minecraft.getInstance().font
+ *         state.text(font, text, 0, 0, 0xFFFFFFFF.toInt(), true)
+ *         OverlaySize(font.width(text), font.lineHeight)
  *     }
  * }
  * ```
  */
 inline fun OverlayPosition.renderAt(
-    ctx: DrawContext,
+    state: GuiGraphicsExtractor,
     screenW: Int,
     screenH: Int,
     label: String,
-    block: (DrawContext) -> OverlaySize,
+    block: (GuiGraphicsExtractor) -> OverlaySize,
 ) {
     val absX = x.toInt().coerceIn(0, screenW)
     val absY = y.toInt().coerceIn(0, screenH)
-    ctx.matrices.pushMatrix()
-    ctx.matrices.translate(absX.toFloat(), absY.toFloat())
-    if (scale != 1f) ctx.matrices.scale(scale)
-    val size = block(ctx)
-    ctx.matrices.popMatrix()
-    OverlayRegistry.report(label, this, size, absX, absY)
+    state.pose().pushMatrix()
+    state.pose().translate(absX.toFloat(), absY.toFloat())
+    if (scale != 1f) state.pose().scale(scale)
+    val size = block(state)
+    state.pose().popMatrix()
+    // size is in local (pre-scale) pixels - scale it up so the reported footprint matches what's
+    // actually visible on screen (the editor's drag handle is sized from this).
+    val scaledSize = OverlaySize((size.width * scale).toInt(), (size.height * scale).toInt())
+    OverlayRegistry.report(label, this, scaledSize, absX, absY)
 }

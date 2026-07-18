@@ -13,17 +13,15 @@ object SimpleCore : ClientModInitializer {
 	 *
 	 * ```kotlin
 	 * SimpleCore.examples.config = true
-	 * SimpleCore.examples.ui = true
 	 * ```
 	 */
 	val examples = Examples()
 
 	override fun onInitializeClient() {
 		println("Hello this is ${BuildConfig.MOD_NAME} v${BuildConfig.MOD_VERSION}")
-		examples.config = true
-        examples.ui = true
-        examples.render = true
         examples.command = true
+        examples.render = true
+        examples.config = true
         examples.overlay = true
 
         // Event Bus

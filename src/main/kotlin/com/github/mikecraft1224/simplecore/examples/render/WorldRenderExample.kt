@@ -1,4 +1,4 @@
-﻿@file:Suppress("unused")
+@file:Suppress("unused")
 
 package com.github.mikecraft1224.simplecore.examples.render
 
@@ -14,65 +14,64 @@ import com.github.mikecraft1224.simplecore.render.world.drawTracer
 import com.github.mikecraft1224.simplecore.render.world.drawWaypoint
 import com.github.mikecraft1224.simplecore.utils.Color
 import com.github.mikecraft1224.simplecore.utils.McUtils
-import net.minecraft.util.math.Box
-import net.minecraft.util.math.Vec3d
+import net.minecraft.world.phys.AABB
+import net.minecraft.world.phys.Vec3
 
 object WorldRenderExample {
 
     @Subscribe
     fun onRenderWorld(event: RenderWorldEvent) {
         val player = McUtils.player ?: return
-        val foot = player.getLerpedPos(event.tickDelta)
+        val foot = player.getPosition(event.tickDelta)
 
-        // Filled + wireframe box east — BoxStyle.BOTH toggles between FILLED, OUTLINED, BOTH
+        // Filled + wireframe box east - BoxStyle.BOTH toggles between FILLED, OUTLINED, BOTH
         event.drawBox(
-            box   = Box(foot.x + 2, foot.y, foot.z - 0.5, foot.x + 3, foot.y + 1, foot.z + 0.5),
+            box   = AABB(foot.x + 2, foot.y, foot.z - 0.5, foot.x + 3, foot.y + 1, foot.z + 0.5),
             color = Color(0, 200, 220, 80),
             style = BoxStyle.BOTH,
         )
 
-        // Xray filled box west — visible through walls, seeThroughBlocks now actually works
+        // Xray filled box west - visible through walls via GizmoProperties.setAlwaysOnTop()
         event.drawBox(
-            box            = Box(foot.x - 3, foot.y, foot.z - 0.5, foot.x - 2, foot.y + 1, foot.z + 0.5),
-            color          = Color.RED.withAlpha(120),
-            style          = BoxStyle.FILLED,
+            box              = AABB(foot.x - 3, foot.y, foot.z - 0.5, foot.x - 2, foot.y + 1, foot.z + 0.5),
+            color            = Color.RED.withAlpha(120),
+            style            = BoxStyle.FILLED,
             seeThroughBlocks = true,
         )
 
         // Highlight the block the player is standing on
         event.drawBlockHighlight(
-            pos   = player.blockPos.down(),
+            pos   = player.blockPosition().below(),
             color = Color(255, 255, 0, 80),
         )
 
         // Line from 1 block west to 1 block east
         event.draw3DLine(
-            from  = Vec3d(foot.x - 1.0, foot.y + 0.5, foot.z),
-            to    = Vec3d(foot.x + 1.0, foot.y + 0.5, foot.z),
+            from  = Vec3(foot.x - 1.0, foot.y + 0.5, foot.z),
+            to    = Vec3(foot.x + 1.0, foot.y + 0.5, foot.z),
             color = Color.YELLOW.withAlpha(220),
         )
 
         // Floating text label above the player
         event.drawText(
-            pos              = Vec3d(foot.x, foot.y + 2.5, foot.z),
+            pos              = Vec3(foot.x, foot.y + 2.5, foot.z),
             text             = "SimpleCore",
             scale            = 1.5f,
             color            = Color.WHITE,
-            shadow           = true,
             seeThroughBlocks = true,
         )
 
         // Tracer from camera toward look direction
-        val look = player.rotationVector
-        val target = event.camera.pos.add(look.multiply(3.0))
+        val look = player.lookAngle
+        val target = event.camera.position().add(look.scale(3.0))
         event.drawTracer(
             to    = target,
             color = Color(255, 100, 100, 200),
         )
 
-        // Filled circle on the ground — double-sided, visible from above and below
+        // Filled circle on the ground - double-sided, visible from above and below
         event.drawFilledCircle(
-            center           = Vec3d(foot.x, foot.y, foot.z),
+            center           = Vec3(foot.x, foot.y, foot.z),
             radius           = 2.0,
             color            = Color(100, 255, 100, 80),
             seeThroughBlocks = true,
@@ -80,7 +79,7 @@ object WorldRenderExample {
 
         // Waypoint 5 blocks north
         event.drawWaypoint(
-            pos   = Vec3d(foot.x, foot.y, foot.z - 5.0),
+            pos   = Vec3(foot.x, foot.y, foot.z - 5.0),
             label = "North",
             color = Color(255, 200, 0, 180),
         )

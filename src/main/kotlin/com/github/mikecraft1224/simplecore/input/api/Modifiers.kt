@@ -1,7 +1,7 @@
 package com.github.mikecraft1224.simplecore.input.api
 
-import net.minecraft.client.util.InputUtil
-import net.minecraft.client.util.Window
+import com.mojang.blaze3d.platform.InputConstants
+import com.mojang.blaze3d.platform.Window
 import org.lwjgl.glfw.GLFW
 
 /**
@@ -18,7 +18,7 @@ data class Modifiers(
 ) {
     fun matches(win: Window?): Boolean {
         if (win == null) return false
-        fun down(code: Int) = InputUtil.isKeyPressed(win, code)
+        fun down(code: Int) = InputConstants.isKeyDown(win, code)
         if (ctrl  && !(down(GLFW.GLFW_KEY_LEFT_CONTROL) || down(GLFW.GLFW_KEY_RIGHT_CONTROL))) return false
         if (shift && !(down(GLFW.GLFW_KEY_LEFT_SHIFT)   || down(GLFW.GLFW_KEY_RIGHT_SHIFT)))   return false
         if (alt   && !(down(GLFW.GLFW_KEY_LEFT_ALT)     || down(GLFW.GLFW_KEY_RIGHT_ALT)))     return false

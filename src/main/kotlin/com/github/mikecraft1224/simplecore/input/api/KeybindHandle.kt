@@ -5,8 +5,8 @@ package com.github.mikecraft1224.simplecore.input.api
 import com.github.mikecraft1224.simplecore.config.KeybindPacked
 import com.github.mikecraft1224.simplecore.config.ProcessedConfig
 import com.github.mikecraft1224.simplecore.config.ProcessedEntry
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.util.InputUtil
+import com.mojang.blaze3d.platform.InputConstants
+import net.minecraft.client.Minecraft
 import kotlin.reflect.KMutableProperty0
 import kotlin.reflect.KProperty0
 
@@ -73,7 +73,7 @@ class KeybindHandle internal constructor(
     fun unregister() {
         if (!isRegistered) return
         isRegistered = false
-        if (action.pressed) action.release(MinecraftClient.getInstance())
+        if (action.pressed) action.release(Minecraft.getInstance())
         removeFromRegistry()
     }
 
@@ -112,9 +112,9 @@ class KeybindHandle internal constructor(
             val keyCode = KeybindPacked.keyCode(packed)
             val mods = KeybindPacked.modifiers(packed)
             virtualSource?.key = if (KeybindPacked.isMouse(packed))
-                InputUtil.Type.MOUSE.createFromCode(keyCode)
+                InputConstants.Type.MOUSE.getOrCreate(keyCode)
             else
-                InputUtil.Type.KEYSYM.createFromCode(keyCode)
+                InputConstants.Type.KEYSYM.getOrCreate(keyCode)
             action.modifiers = mods
         }
         return this

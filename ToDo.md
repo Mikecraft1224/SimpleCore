@@ -2,6 +2,27 @@
 
 A lightweight Fabric library mod providing common utilities for client-side Minecraft modding.
 
+## ⚠ Currently targets Minecraft 26.2 - GUI/overlay code is disabled, world rendering is back
+
+The project was migrated from 1.21.10 (Yarn) to 26.2 (ships unobfuscated, no Yarn mappings exist
+for it). 26.2 replaced the entire rendering pipeline with a render-state-extraction model
+(`Screen.render` no longer exists) and a first-party `net.minecraft.gizmos.Gizmos` API for
+world-space debug/utility drawing. Status:
+
+- **Working:** event bus, keybinds (except screen-context detection), commands, the config data
+  model, utils, and **world rendering** (`render/world/**`, `RenderWorldEvent.kt`) - rebuilt
+  against `Gizmos`/`LevelRenderEvents.BEFORE_GIZMOS`. A minimal `RenderHudEvent.kt` bridge exists
+  too (`HudElementRegistry`-backed).
+- **Still disabled** (`*.disabled`, pending a dedicated redesign session): `config/screen/**`,
+  `overlay/**` (the whole HUD-overlay-editor system - `HudManager`/`HudElement`/`OverlayRegistry`/
+  the editor screen), and the examples that depend on them. These need the `Screen` input-handling
+  story worked out (unresearched) plus adopting `HudElementRegistry`'s persistent-registration
+  model instead of SimpleCore's own per-frame HUD dispatch.
+- Entity outline/glow highlighting was never re-researched for 26.2 (only 1.21.10, now stale).
+
+See `project_26_2_migration` (Yarn->26.2 naming table) and `project_26_2_render_architecture`
+(how Gizmos/LevelRenderEvents/GuiGraphicsExtractor work, what's still unknown) memories.
+
 ## Status Legend
 - `[DONE]` - Feature complete, may have minor tech debt
 - `[IN PROGRESS]` - Partially implemented
@@ -129,31 +150,6 @@ A lightweight Fabric library mod providing common utilities for client-side Mine
 
 ---
 
-### UI Library `[IN PROGRESS]`
-
-**Done:**
-- `Widget` interface - bounding box + render + full input dispatch matching MC 1.21.10 API (`Click`, `KeyInput`, `CharInput`)
-- `Panel` abstract container - children list, forwarded render/input, `onAdded`/`onRemoved` via `ChildRegistrar`
-- `UiScreen` base Screen - hosts root Panel, delegates all input, manages `ChildRegistrar` lifecycle; F4 toggles debug bounds overlay
-- `UiTheme` data class - Catppuccin Mocha defaults, partially overridable per-screen; `currentTheme` global + `withTheme {}` scope
-- `ChildRegistrar` interface - lets widgets register Minecraft child elements without breaking protected access
-- Widgets: `Button`, `Toggle` (pill toggle), `TextField` (wraps `TextFieldWidget`), `Label` (open; static or lambda text provider), `Image` (drawTexture), `Divider` (horizontal/vertical, optional label), `FormRow` (label+widget composite for settings forms)
-- Layouts: `HSplit` (left/right ratio), `VSplit` (top/bottom ratio), `LinearLayout` (HORIZONTAL/VERTICAL, per-child preferred size, weight-based distribution, spacing), `FrameLayout` (absolute relX/relY placement)
-- `ModifiedWidget` - fluent sizing/padding/alignment/weight hints via extension functions (`.width()`, `.height()`, `.size()`, `.padding()`, `.align()`, `.weight()`, `.fillWidth()`, `.fillHeight()`)
-- DSL scopes: `@UiDsl`, `LinearLayoutScope` (`+widget` operator), `FrameScope` (`widget.at(relX, relY, w, h)`)
-- `weightedRow(vararg Pair<Widget, Int>)` builder for proportional splits
-- `ExampleScreen` - rewritten to demonstrate all new DSL features, FormRow, weight-based layouts, and dynamic Labels
-
-**Remaining:**
-- Overlay mechanism in UiScreen (OverlayHost interface) -- required for fully extracting
-  Dropdown, ColorPicker, Keybind, and ListEditor into standalone Widget classes
-- Full config entry widgets as proper Widgets (Slider, Dropdown, ColorPickerWidget, etc.)
-- Scrollable panels / scroll container
-- Tooltip support
-- Focus ring / keyboard navigation
-
----
-
 ### Utils `[DONE]`
 
 **Implemented:**
@@ -193,7 +189,7 @@ A lightweight Fabric library mod providing common utilities for client-side Mine
 ### P2 - New Features
 - [x] Command system implementation
 - [ ] Expand Minecraft-specific argument types (entity selector, block position, NBT, vec3)
-- [x] UI library with moveable overlays
+- [ ] UI widget/layout library (scrapped, to be redesigned - see memory)
 - [ ] Utils module with common helpers
 
 ### P3 - Polish

@@ -7,9 +7,9 @@ import com.github.mikecraft1224.simplecore.bus.api.Event
 import com.github.mikecraft1224.simplecore.bus.api.EventCompanion
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener
-import net.minecraft.resource.ResourceManager
-import net.minecraft.resource.ResourceType
-import net.minecraft.util.Identifier
+import net.minecraft.resources.Identifier
+import net.minecraft.server.packs.PackType
+import net.minecraft.server.packs.resources.ResourceManager
 
 /** Fired synchronously when client resources are reloaded (resource packs, F3+T). */
 class ResourceReloadEvent(val manager: ResourceManager) : Event() {
@@ -21,12 +21,12 @@ class ResourceReloadEvent(val manager: ResourceManager) : Event() {
             // TODO: SimpleSynchronousResourceReloadListener is deprecated. Migrate to implementing
             //  SynchronousResourceReloadListener directly with the appropriate ID registration
             //  overload when bumping Fabric API.
-            ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES)
+            ResourceManagerHelper.get(PackType.CLIENT_RESOURCES)
                 .registerReloadListener(object : SimpleSynchronousResourceReloadListener {
                     override fun getFabricId(): Identifier =
-                        Identifier.of("simplecore", "resource_reload_event")
+                        Identifier.fromNamespaceAndPath("simplecore", "resource_reload_event")
 
-                    override fun reload(manager: ResourceManager) {
+                    override fun onResourceManagerReload(manager: ResourceManager) {
                         EventRegistry.post { ResourceReloadEvent(manager) }
                     }
                 })

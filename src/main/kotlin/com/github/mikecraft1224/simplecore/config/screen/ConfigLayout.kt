@@ -1,9 +1,9 @@
-﻿@file:Suppress("unused")
+@file:Suppress("unused")
 
 package com.github.mikecraft1224.simplecore.config.screen
 
 import com.github.mikecraft1224.simplecore.utils.Color
-import net.minecraft.client.gui.DrawContext
+import net.minecraft.client.gui.GuiGraphicsExtractor
 
 object ConfigLayout {
     const val CAT_W      = 120
@@ -42,7 +42,7 @@ object ConfigLayout {
         return (color and 0xFF000000.toInt()) or (r shl 16) or (g shl 8) or b
     }
 
-    fun DrawContext.drawDialogBorder(dx: Int, dy: Int, dw: Int, dh: Int) {
+    fun GuiGraphicsExtractor.drawDialogBorder(dx: Int, dy: Int, dw: Int, dh: Int) {
         fill(dx, dy, dx + dw, dy + dh, C_MANTLE)
         fill(dx,          dy,          dx + dw, dy + 1,      C_SURFACE1)
         fill(dx,          dy + dh - 1, dx + dw, dy + dh,     C_SURFACE1)
